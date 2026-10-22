@@ -24,7 +24,7 @@ REGIOES = {
     "Sul": ["PR", "RS", "SC"]
 }
 
-SIGLAS_POR_NOME = {
+siglas_por_nome = {
     "Acre": "AC", "Alagoas": "AL", "Amapá": "AP", "Amazonas": "AM",
     "Bahia": "BA", "Ceará": "CE", "Distrito Federal": "DF",
     "Espírito Santo": "ES", "Goiás": "GO", "Maranhão": "MA",
@@ -48,14 +48,17 @@ def formata_percentual(valor: float) -> str:
 
 # camada de dados e cache para otimizar o carregamento
 
+
 @st.cache_data(ttl=3600, show_spinner="Carregando dados de abate e condenação...")
 def carregar_dados() -> pd.DataFrame:
     caminho_abate = DATA_DIR / "tratados" / "bovino_bubalinos_abate_país.parquet"
-    caminho_condenacao = DATA_DIR / "tratados" / "bovino_bubalinos_condenacao_ano.parquet"
+    caminho_condenacao = DATA_DIR / "tratados" / \
+        "bovino_bubalinos_condenacao_ano.parquet"
 
     if not caminho_abate.exists() or not caminho_condenacao.exists():
-            st.error(f"❌ Não foi possível encontrar os arquivos em `{DATA_DIR / 'tratados'}`")
-            st.stop()
+        st.error(
+            f"❌ Não foi possível encontrar os arquivos em `{DATA_DIR / 'tratados'}`")
+        st.stop()
 
     abate = pd.read_parquet(caminho_abate)
     condenacao = pd.read_parquet(caminho_condenacao)
@@ -64,7 +67,8 @@ def carregar_dados() -> pd.DataFrame:
 
     # Padroniza os tipos de dados e remove espaços em branco
     for df in [abate, condenacao]:
-        df["UF_PROCEDENCIA"] = df["UF_PROCEDENCIA"].astype("string").str.strip().str.upper()
+        df["UF_PROCEDENCIA"] = df["UF_PROCEDENCIA"].astype(
+            "string").str.strip().str.upper()
         df["ANO"] = pd.to_numeric(df["ANO"], errors="coerce")
         df["MES"] = pd.to_numeric(df["MES"], errors="coerce")
 
@@ -111,28 +115,18 @@ def carregar_dados() -> pd.DataFrame:
 
     return dados
 
+
 @st.cache_data(ttl=3600, show_spinner="Carregando malha geográfica...")
 def carregar_malha_estados() -> dict:
     caminho_malha = DATA_DIR / "malha_estados.json"
-
-    if not caminho_malha.exists():
-        arquivos_na_pasta = list(DATA_DIR.glob("*")) if DATA_DIR.exists() else []
-        lista_arquivos = "\n".join([f"- `{f.name}`" for f in arquivos_na_pasta]) or "Nenhum arquivo encontrado."
-        
-        st.error(
-            f"❌ **Arquivo não encontrado:** `{caminho_malha}`\n\n"
-            f"**Arquivos detectados na sua pasta `Dados`:**\n{lista_arquivos}\n\n"
-            f"💡 *Nota:* Se você visualiza `malha_estados.json` no Windows Explorer, o nome real do arquivo pode ser `malha_estados.json.json` ou ter a extensão `.geojson`."
-        )
-        st.stop()
 
     with open(caminho_malha, "r", encoding="utf-8") as f:
         malha_estados = json.load(f)
 
     for feature in malha_estados["features"]:
-        props = feature["properties"]
-        nome = props.get("nome") or props.get("name")
-        props["sigla"] = SIGLAS_POR_NOME.get(nome)
+        props = feature.setdefault("properties", {})
+        if "UF_SIGLA" in props and props["UF_SIGLA"]:
+            props["UF_SIGLA"] = str(props["UF_SIGLA"]).strip().upper()
 
     return malha_estados
 
@@ -140,14 +134,15 @@ def carregar_malha_estados() -> dict:
 dados_pais = carregar_dados()
 geo_estados = carregar_malha_estados()
 
-#filtros dinâmicos e interativos com Streamlit
+# filtros dinâmicos e interativos com Streamlit
 
 
 st.sidebar.header("Filtros de Analise")
 recorte_regiao = st.sidebar.radio("Região Geográfica", list(REGIOES.keys()))
 
 if REGIOES[recorte_regiao] is not None:
-    dados_base = dados_pais[dados_pais["UF_PROCEDENCIA"].isin(REGIOES[recorte_regiao])].copy()
+    dados_base = dados_pais[dados_pais["UF_PROCEDENCIA"].isin(
+        REGIOES[recorte_regiao])].copy()
 else:
     dados_base = dados_pais.copy()
 
@@ -155,9 +150,12 @@ anos_disponiveis = sorted(dados_base["ANO"].dropna().unique())
 ufs_disponiveis = sorted(dados_base["UF_PROCEDENCIA"].dropna().unique())
 especies_disponiveis = sorted(dados_base["ESPECIE"].dropna().unique())
 
-anos = st.sidebar.multiselect("Ano", options=anos_disponiveis, default=anos_disponiveis)
-ufs = st.sidebar.multiselect("Unidade Federativa", options=ufs_disponiveis, default=ufs_disponiveis)
-especie = st.sidebar.multiselect("Espécie", options=especies_disponiveis, default=especies_disponiveis)
+anos = st.sidebar.multiselect(
+    "Ano", options=anos_disponiveis, default=anos_disponiveis)
+ufs = st.sidebar.multiselect(
+    "Unidade Federativa", options=ufs_disponiveis, default=ufs_disponiveis)
+especie = st.sidebar.multiselect(
+    "Espécie", options=especies_disponiveis, default=especies_disponiveis)
 
 dados_filtrados = dados_base[
     dados_base["ANO"].isin(anos) &
@@ -166,14 +164,15 @@ dados_filtrados = dados_base[
 ].copy()
 
 if dados_filtrados.empty:
-    st.warning("⚠️ Nenhum registro encontrado para os filtros selecionados.")
+    st.warning("Nenhum registro encontrado para os filtros selecionados.")
     st.stop()
 
-#KPIS e métricas principais
+# KPIS e métricas principais
 
 total_abatidos = dados_filtrados["ABATE"].sum()
 total_condenados = dados_filtrados["CONDENADO"].sum()
-indice_global = (total_condenados / total_abatidos * 100) if total_abatidos > 0 else 0
+indice_global = (total_condenados / total_abatidos *
+                 100) if total_abatidos > 0 else 0
 mediana_mensal = dados_filtrados["percentual_condenados"].median()
 
 c1, c2, c3, c4 = st.columns(4)
@@ -182,63 +181,90 @@ c2.metric("Condenações Registradas", formata_numero(total_condenados))
 c3.metric("Índice Global de Condenação", formata_percentual(indice_global))
 c4.metric("Mediana Mensal do Índice", formata_percentual(mediana_mensal))
 
+st.info(
+    "💡 **Nota de Interpretação Sanitária:** O índice exibido reflete o volume de "
+    "**partes/carcaças afetadas por 100 animais abatidos**. Uma mesma carcaça com duas "
+    "meias-carcaças condenadas gerará 2 registros no indicador."
+)
+
 st.markdown("---")
 
-#mapa interativo com Plotly Express
-st.subheader("Mapa Interativo de Condenação por Estado")
+# mapa interativo com Plotly Express
+st.subheader(f"Indicadores Geográficos — Anos: {', '.join(map(str, anos))}")
 
 resumo_mapa = (
     dados_filtrados
     .groupby("UF_PROCEDENCIA", as_index=False)
     .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO", "sum"))
 )
-resumo_mapa["INDICE_CONDENACAO"] = (resumo_mapa["CONDENADO"] / resumo_mapa["ABATE"]) * 100
+resumo_mapa["INDICE_CONDENACAO"] = (
+    resumo_mapa["CONDENADO"] / resumo_mapa["ABATE"]) * 100
 resumo_mapa = resumo_mapa[resumo_mapa["ABATE"] > 0].copy()
 
-st.subheader(f"📍 Indicadores Geográficos — Anos: {', '.join(map(str, anos))}")
-
-fig_mapa = px.choropleth(
-    resumo_mapa,
-    geojson=geo_estados,
-    locations="UF_PROCEDENCIA",
-    featureidkey="properties.sigla",
-    color="INDICE_CONDENACAO",
-    color_continuous_scale="YlOrRd",
-    labels={"INDICE_CONDENACAO": "Índice (%)"},
-)
-
-fig_mapa.update_geos(fitbounds="locations", visible=False, projection_type="mercator")
-fig_mapa.update_layout(margin=dict(l=0, r=0, t=10, b=0), coloraxis_colorbar_title="Índice (%)")
-fig_mapa.update_traces(hovertemplate="<b>%{location}</b><br>Índice de condenação: %{z:.2f}%<extra></extra>")
-
-evento = st.plotly_chart(
-    fig_mapa,
-    use_container_width=True,
-    key="mapa_brasil",
-    on_select="rerun",
-    selection_mode="points",
-    config={"displayModeBar": False}
-)
-
-pontos_selecionados = evento.get("selection", {}).get("points", [])
-if pontos_selecionados:
-    uf_selecionada = pontos_selecionados[-1]["location"]
-    df_uf = resumo_mapa[resumo_mapa["UF_PROCEDENCIA"] == uf_selecionada]
-    
-    if not df_uf.empty:
-        detalhe_uf = df_uf.iloc[0]
-        st.info(f"**Detalhes selecionados — {uf_selecionada}:** Abates: {formata_numero(detalhe_uf['ABATE'])} | Condenações: {formata_numero(detalhe_uf['CONDENADO'])} | Taxa: {formata_percentual(detalhe_uf['INDICE_CONDENACAO'])}")
+if resumo_mapa.empty:
+    st.info("Nenhum dado disponível para renderizar o mapa com os filtros atuais.")
 else:
-    st.caption("💡 Clique em um estado no mapa para ver o detalhamento isolado.")
+    fig_mapa = px.choropleth(
+        resumo_mapa,
+        geojson=geo_estados,
+        locations="UF_PROCEDENCIA",
+        featureidkey="properties.UF_SIGLA",
+        color="INDICE_CONDENACAO",
+        color_continuous_scale="YlOrRd",
+        labels={"INDICE_CONDENACAO": "Índice (%)"},
+    )
 
-#Análise temporal com gráfico de linha e distribuição de densidade
+    # Ajusta o enquadramento geográfico no Brasil
+    fig_mapa.update_geos(
+        fitbounds="locations",
+        visible=False,
+        projection_type="mercator"
+    )
+
+    fig_mapa.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0),
+        coloraxis_colorbar_title="Índice (%)"
+    )
+
+    fig_mapa.update_traces(
+        hovertemplate="<b>%{location}</b><br>Índice de condenação: %{z:.2f}%<extra></extra>"
+    )
+
+    evento = st.plotly_chart(
+        fig_mapa,
+        use_container_width=True,
+        key="mapa_brasil",
+        on_select="rerun",
+        selection_mode="points",
+        config={"displayModeBar": False}
+    )
+
+    pontos_selecionados = evento.get("selection", {}).get("points", [])
+    if pontos_selecionados:
+        uf_selecionada = pontos_selecionados[-1]["location"]
+        df_uf = resumo_mapa[resumo_mapa["UF_PROCEDENCIA"] == uf_selecionada]
+
+        if not df_uf.empty:
+            detalhe_uf = df_uf.iloc[0]
+            st.info(
+                f"**Detalhes selecionados — {uf_selecionada}:** "
+                f"Abates: {formata_numero(detalhe_uf['ABATE'])} | "
+                f"Condenações: {formata_numero(detalhe_uf['CONDENADO'])} | "
+                f"Taxa: {formata_percentual(detalhe_uf['INDICE_CONDENACAO'])}"
+            )
+    else:
+        st.caption("Clique em um estado no mapa para ver o detalhamento isolado.")
+
+# Análise temporal com gráfico de linha e distribuição de densidade
 
 st.subheader("Evolução Mensal do Índice de Condenção")
 df_linha = (
-    dados_filtrados.groupby(["DATA", "UF_PROCEDENCIA"], as_index=False) #agrupamento para evitar ruídos
+    # agrupamento para evitar ruídos
+    dados_filtrados.groupby(["DATA", "UF_PROCEDENCIA"], as_index=False)
     .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO", "sum"))
 )
-df_linha["percentual_condenados"] = (df_linha["CONDENADO"] / df_linha["ABATE"]) * 100
+df_linha["percentual_condenados"] = (
+    df_linha["CONDENADO"] / df_linha["ABATE"]) * 100
 
 fig_linha = px.line(
     df_linha.sort_values("DATA"),
@@ -246,13 +272,14 @@ fig_linha = px.line(
     y="percentual_condenados",
     color="UF_PROCEDENCIA",
     markers=True,
-    labels={"DATA": "Mês/Ano", "percentual_condenados": "Índice (%)", "UF_PROCEDENCIA": "UF"},
+    labels={"DATA": "Mês/Ano",
+            "percentual_condenados": "Índice (%)", "UF_PROCEDENCIA": "UF"},
     template="plotly_white"
 )
 fig_linha.update_yaxes(rangemode="tozero")
 st.plotly_chart(fig_linha, use_container_width=True)
 
-st.subheader("📦 Distribuição e Dispersão Mensal por UF")
+st.subheader("Distribuição e Dispersão Mensal por UF")
 
 fig_box = px.box(
     dados_filtrados,
@@ -266,12 +293,14 @@ fig_box = px.box(
 fig_box.update_layout(showlegend=False)
 st.plotly_chart(fig_box, use_container_width=True)
 
-#Tabela e documentação dos métodos e limitações
-st.subheader("📄 Tabela de Dados Consolidados")
+# Tabela e documentação dos métodos e limitações
+st.subheader("Tabela de Dados Consolidados")
 
-colunas_tabela = ["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE", "ABATE", "CONDENADO", "percentual_condenados"]
+colunas_tabela = ["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
+                  "ABATE", "CONDENADO", "percentual_condenados"]
 st.dataframe(
-    dados_filtrados[colunas_tabela].sort_values(["ANO", "MES", "UF_PROCEDENCIA"]),
+    dados_filtrados[colunas_tabela].sort_values(
+        ["ANO", "MES", "UF_PROCEDENCIA"]),
     use_container_width=True,
     hide_index=True
 )
