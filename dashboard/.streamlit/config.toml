@@ -1,0 +1,24 @@
+base = ligth #define a cor de fundo do tema sem seguir a preferência do sistema
+
+#cores do dashboard
+primarycolor = "#0066CC" #cor de fundo e base
+backgroundColor = "#FFFFFF" # fundo da parte principal
+secondaryBackgroundColor = "#F0F2F6" #fundo da sidebar, cards e seletores
+textColor = "#262730" #cor dos textos principais
+font = "sans serif"
+
+#controla o limite de upload, no caso irá ser de 1000MB
+[server]
+maxUploadSize = 1000
+# Esconde telas de erro detalhadas em produção para o usuário final
+showEmailPrompt = false
+
+#define se o sidebar será autho, show ou hidden
+[client]
+toolbarMode = "auto"
+
+#otimização de renderização visual
+showErrorDetails = true #trocar para false após o dashboard ficar pronto
+
+#Desativa a coleta de estatísticas de uso anônimas enviadas ao Streamlit
+gatherUsageStats = false
