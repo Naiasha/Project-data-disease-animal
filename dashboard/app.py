@@ -310,236 +310,247 @@ tab_geral, tab_doencas, tab_estatistica = st.tabs([
 
 # Aba "Panorama Geral" - KPIs, Mapa e Gráficos
 # KPIS e métricas principais
+with tab_geral:
+    st.subheader("📊 Indicadores Gerais de Abate e Condenação")
+    st.caption(
+        "Painel interativo de vigilância sanitária baseado nos dados de abate e condenação")
 
-total_abatidos = dados_filtrados["ABATE"].sum()
-total_carcaca = dados_filtrados["Carcaça e Cortes"].sum()
-total_visceras = dados_filtrados["Vísceras e Miúdos"].sum()
-
-taxa_carcaca = (total_carcaca / total_abatidos *
-                100) if total_abatidos > 0 else 0
-taxa_visceras = (total_visceras / total_abatidos *
-                 100) if total_abatidos > 0 else 0
-
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Volume de Abate", formata_numero(total_abatidos))
-c2.metric("Condenações de Carcaça", formata_numero(total_carcaca),
-          delta=f"{taxa_carcaca:.2f}% dos abates", delta_color="inverse")
-c3.metric("Condenações de Vísceras/Miúdos", formata_numero(total_visceras),
-          delta=f"{taxa_visceras:.2f}% dos abates", delta_color="off")
-c4.metric("Registros de Ocorrências", formata_numero(
-    total_carcaca + total_visceras))
-
-st.info(
-    "💡 **Nota Técnica Sanitária:** O índice exibido representa o número de **ocorrências notificadas por 100 animais abatidos**. "
-    "A categoria *Carcaça e Cortes* refere-se a condenações totais/estruturais, enquanto *Vísceras/Miúdos* refere-se a condenações parciais de órgãos."
-)
-
-st.markdown("---")
-
-
-# mapa interativo com Plotly Express
-st.subheader(
-    f"Indicadores Geográficos por UF — Anos: {', '.join(map(str, anos))}")
-
-col_map_fig, col_map_ctrl = st.columns([3.5, 1])
-
-with col_map_ctrl:
-    st.markdown("##### Métrica do Mapa")
-    metrica_mapa = st.radio(
-        "Visualizar por:",
-        options=["Taxa Sanitária (%)", "Volume Absoluto (Ocorrências)"],
-        index=0,
-        help=(
-            "• Taxa Sanitária (%): Ocorrências a cada 100 abates (relevância epidemiológica).\n"
-            "• Volume Absoluto: Total de condenações notificadas (escala operacional)."
-        )
-    )
-
-resumo_mapa = (
-    dados_filtrados
-    .groupby("UF_PROCEDENCIA", as_index=False)
-    .agg(
-        ABATE=("ABATE", "sum"),
-        CONDENADO_CARCACA=("Carcaça e Cortes", "sum"),
-        CONDENADO_VISCERAS=("Vísceras e Miúdos", "sum"),
-        CONDENADO_TOTAL=("CONDENADO_TOTAL", "sum")
-    )
-)
-resumo_mapa["INDICE_CONDENACAO"] = (
-    resumo_mapa["CONDENADO_TOTAL"] / resumo_mapa["ABATE"]) * 100
-resumo_mapa = resumo_mapa[resumo_mapa["ABATE"] > 0].copy()
-
-# Configuração dinâmica das variáveis do Plotly
-if metrica_mapa == "Taxa Sanitária (%)":
-    coluna_cor = "INDICE_CONDENACAO"
-    rotulo_cor = "Taxa (%)"
-    hover_fmt = "<b>%{location}</b><br>Taxa Sanitária: %{z:.2f}%<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
-else:
-    coluna_cor = "CONDENADO_TOTAL"
-    rotulo_cor = "Ocorrências"
-    hover_fmt = "<b>%{location}</b><br>Ocorrências: %{z:,.0f}<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
-
-fig_mapa = px.choropleth(
-    resumo_mapa,
-    geojson=geo_estados,
-    locations="UF_PROCEDENCIA",
-    featureidkey="properties.UF_SIGLA",
-    color=coluna_cor,
-    custom_data=["ABATE", "CONDENADO_TOTAL", "INDICE_CONDENACAO"],
-    color_continuous_scale="YlOrRd",
-    labels={coluna_cor: rotulo_cor},
-)
-
-fig_mapa.update_geos(fitbounds="locations", visible=False,
-                     projection_type="mercator")
-fig_mapa.update_layout(margin=dict(l=0, r=0, t=10, b=0),
-                       coloraxis_colorbar_title=rotulo_cor)
-fig_mapa.update_traces(hovertemplate=hover_fmt)
-
-with col_map_fig:
-    evento = st.plotly_chart(
-        fig_mapa,
-        use_container_width=True,
-        key="mapa_brasil",
-        on_select="rerun",
-        selection_mode="points",
-        config={"displayModeBar": False}
-    )
-
-pontos_selecionados = evento.get("selection", {}).get("points", [])
-if pontos_selecionados:
-    uf_selecionada = pontos_selecionados[-1]["location"]
-    df_uf = resumo_mapa[resumo_mapa["UF_PROCEDENCIA"] == uf_selecionada]
-
-    if not df_uf.empty:
-        detalhe_uf = df_uf.iloc[0]
+    if df_doencas_filtrado.empty:
         st.info(
-            f"**Detalhes selecionados — {uf_selecionada}:** "
-            f"Abates: {formata_numero(detalhe_uf['ABATE'])} | "
-            f"Carcaças Condenadas: {formata_numero(detalhe_uf['CONDENADO_CARCACA'])} | "
-            f"Vísceras Condenadas: {formata_numero(detalhe_uf['CONDENADO_VISCERAS'])} | "
-            f"Taxa Sanitária Global: {formata_percentual(detalhe_uf['INDICE_CONDENACAO'])}"
+            "⚠️ Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados.")
+    else:
+        total_abatidos = dados_filtrados["ABATE"].sum()
+        total_carcaca = dados_filtrados["Carcaça e Cortes"].sum()
+        total_visceras = dados_filtrados["Vísceras e Miúdos"].sum()
+
+        taxa_carcaca = (total_carcaca / total_abatidos *
+                        100) if total_abatidos > 0 else 0
+        taxa_visceras = (total_visceras / total_abatidos *
+                         100) if total_abatidos > 0 else 0
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Volume de Abate", formata_numero(total_abatidos))
+        c2.metric("Condenações de Carcaça", formata_numero(total_carcaca),
+                  delta=f"{taxa_carcaca:.2f}% dos abates", delta_color="inverse")
+        c3.metric("Condenações de Vísceras/Miúdos", formata_numero(total_visceras),
+                  delta=f"{taxa_visceras:.2f}% dos abates", delta_color="off")
+        c4.metric("Registros de Ocorrências", formata_numero(
+            total_carcaca + total_visceras))
+
+        st.info(
+            "💡 **Nota Técnica Sanitária:** O índice exibido representa o número de **ocorrências notificadas por 100 animais abatidos**. "
+            "A categoria *Carcaça e Cortes* refere-se a condenações totais/estruturais, enquanto *Vísceras/Miúdos* refere-se a condenações parciais de órgãos."
         )
-else:
-    st.caption("💡 Clique em um estado no mapa para ver o detalhamento isolado.")
 
-# gráfico de ranking de condenações por UF
+        st.markdown("---")
 
-# Filtra a base bruta com base nos anos e UFs selecionados
-col_graf1, col_graf2 = st.columns([1, 1])
+        # mapa interativo com Plotly Express
+        st.subheader(
+            f"Indicadores Geográficos por UF — Anos: {', '.join(map(str, anos))}")
 
-with col_graf1:
-    st.subheader("Top 10 Partes Afetadas por Condenação")
+        col_map_fig, col_map_ctrl = st.columns([3.5, 1])
 
-    df_partes_top = (
-        df_condenacao_bruta[
-            (df_condenacao_bruta["ANO"].isin(anos)) &
-            (df_condenacao_bruta["UF_PROCEDENCIA"].isin(ufs)) &
-            (df_condenacao_bruta["CATEGORIA_SANITY"]
-             != "Coletas / Amostragens")
+        with col_map_ctrl:
+            st.markdown("##### Métrica do Mapa")
+            metrica_mapa = st.radio(
+                "Visualizar por:",
+                options=["Taxa Sanitária (%)",
+                         "Volume Absoluto (Ocorrências)"],
+                index=0,
+                help=(
+                    "• Taxa Sanitária (%): Ocorrências a cada 100 abates (relevância epidemiológica).\n"
+                    "• Volume Absoluto: Total de condenações notificadas (escala operacional)."
+                )
+            )
+
+        resumo_mapa = (
+            dados_filtrados
+            .groupby("UF_PROCEDENCIA", as_index=False)
+            .agg(
+                ABATE=("ABATE", "sum"),
+                CONDENADO_CARCACA=("Carcaça e Cortes", "sum"),
+                CONDENADO_VISCERAS=("Vísceras e Miúdos", "sum"),
+                CONDENADO_TOTAL=("CONDENADO_TOTAL", "sum")
+            )
+        )
+        resumo_mapa["INDICE_CONDENACAO"] = (
+            resumo_mapa["CONDENADO_TOTAL"] / resumo_mapa["ABATE"]) * 100
+        resumo_mapa = resumo_mapa[resumo_mapa["ABATE"] > 0].copy()
+
+        # Configuração dinâmica das variáveis do Plotly
+        if metrica_mapa == "Taxa Sanitária (%)":
+            coluna_cor = "INDICE_CONDENACAO"
+            rotulo_cor = "Taxa (%)"
+            hover_fmt = "<b>%{location}</b><br>Taxa Sanitária: %{z:.2f}%<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
+        else:
+            coluna_cor = "CONDENADO_TOTAL"
+            rotulo_cor = "Ocorrências"
+            hover_fmt = "<b>%{location}</b><br>Ocorrências: %{z:,.0f}<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
+
+        fig_mapa = px.choropleth(
+            resumo_mapa,
+            geojson=geo_estados,
+            locations="UF_PROCEDENCIA",
+            featureidkey="properties.UF_SIGLA",
+            color=coluna_cor,
+            custom_data=["ABATE", "CONDENADO_TOTAL", "INDICE_CONDENACAO"],
+            color_continuous_scale="YlOrRd",
+            labels={coluna_cor: rotulo_cor},
+        )
+
+        fig_mapa.update_geos(fitbounds="locations", visible=False,
+                             projection_type="mercator")
+        fig_mapa.update_layout(margin=dict(l=0, r=0, t=10, b=0),
+                               coloraxis_colorbar_title=rotulo_cor)
+        fig_mapa.update_traces(hovertemplate=hover_fmt)
+
+        with col_map_fig:
+            evento = st.plotly_chart(
+                fig_mapa,
+                use_container_width=True,
+                key="mapa_brasil",
+                on_select="rerun",
+                selection_mode="points",
+                config={"displayModeBar": False}
+            )
+
+        pontos_selecionados = evento.get("selection", {}).get("points", [])
+        if pontos_selecionados:
+            uf_selecionada = pontos_selecionados[-1]["location"]
+            df_uf = resumo_mapa[resumo_mapa["UF_PROCEDENCIA"]
+                                == uf_selecionada]
+
+            if not df_uf.empty:
+                detalhe_uf = df_uf.iloc[0]
+                st.info(
+                    f"**Detalhes selecionados — {uf_selecionada}:** "
+                    f"Abates: {formata_numero(detalhe_uf['ABATE'])} | "
+                    f"Carcaças Condenadas: {formata_numero(detalhe_uf['CONDENADO_CARCACA'])} | "
+                    f"Vísceras Condenadas: {formata_numero(detalhe_uf['CONDENADO_VISCERAS'])} | "
+                    f"Taxa Sanitária Global: {formata_percentual(detalhe_uf['INDICE_CONDENACAO'])}"
+                )
+        else:
+            st.caption(
+                "💡 Clique em um estado no mapa para ver o detalhamento isolado.")
+
+        # gráfico de ranking de condenações por UF
+
+        # Filtra a base bruta com base nos anos e UFs selecionados
+        col_graf1, col_graf2 = st.columns([1, 1])
+
+        with col_graf1:
+            st.subheader("Top 10 Partes Afetadas por Condenação")
+
+            df_partes_top = (
+                df_condenacao_bruta[
+                    (df_condenacao_bruta["ANO"].isin(anos)) &
+                    (df_condenacao_bruta["UF_PROCEDENCIA"].isin(ufs)) &
+                    (df_condenacao_bruta["CATEGORIA_SANITY"]
+                     != "Coletas / Amostragens")
+                ]
+                .groupby("PARTE_PADRONIZADA", as_index=False)
+                .agg(TOTAL=("TOTAL_PARTES_AFETADAS", "sum"))
+                .sort_values("TOTAL", ascending=True)
+                .tail(10)
+            )
+
+            fig_partes = px.bar(
+                df_partes_top,
+                x="TOTAL",
+                y="PARTE_PADRONIZADA",
+                orientation="h",
+                text_auto=",.0f",
+                labels={"TOTAL": "Registros",
+                        "PARTE_PADRONIZADA": "Parte Afetada"},
+                color="TOTAL",
+                color_continuous_scale="Reds",
+                template="plotly_white"
+            )
+            fig_partes.update_layout(coloraxis_showscale=False,
+                                     margin=dict(l=0, r=0, t=10, b=0))
+            st.plotly_chart(fig_partes, use_container_width=True)
+
+            with col_graf2:
+                st.subheader("explicação - Top 10 UFs por Taxa de Condenação")
+
+        UF_PARA_REGIAO = {uf: reg for reg,
+                          ufs in REGIOES.items() if ufs for uf in ufs}
+        st.subheader("📈 Evolução Mensal do Índice de Condenação")
+
+        if "REGIAO" not in dados_filtrados.columns:
+            dados_filtrados["REGIAO"] = dados_filtrados["UF_PROCEDENCIA"].map(
+                UF_PARA_REGIAO)
+
+        coluna_grupo = "REGIAO" if recorte_regiao == "Brasil" else "UF_PROCEDENCIA"
+        titulo_legenda = "Região" if recorte_regiao == "Brasil" else "Estado (UF)"
+
+        df_linha = (
+            dados_filtrados
+            .groupby(["DATA", coluna_grupo], as_index=False)
+            .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
+        )
+        df_linha["percentual_condenados"] = (
+            df_linha["CONDENADO"] / df_linha["ABATE"]) * 100
+
+        fig_linha = px.line(
+            df_linha.sort_values("DATA"),
+            x="DATA",
+            y="percentual_condenados",
+            color=coluna_grupo,
+            markers=True,
+            labels={"DATA": "Mês/Ano",
+                    "percentual_condenados": "Taxa Sanitária (%)"},
+            template="plotly_white"
+        )
+
+        fig_linha.update_yaxes(rangemode="tozero")
+        fig_linha.update_layout(
+            legend_title_text=titulo_legenda,
+            margin=dict(l=0, r=0, t=10, b=0),
+            hovermode="x unified"
+        )
+
+        st.plotly_chart(fig_linha, use_container_width=True)
+
+        if not dados_outliers.empty:
+            with st.expander("Ver registros atípicos isolados pelo filtro de qualidade"):
+                st.write(
+                    "Abaixo estão os registros originais da base que apresentaram inconsistências de proporção:")
+                st.dataframe(
+                    dados_outliers[["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
+                                    "ABATE", "CONDENADO_TOTAL", "percentual_condenados"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+        # tabela de dados consolidados
+        st.subheader("Tabela de Dados Consolidados")
+
+        colunas_tabela = [
+            "ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
+            "ABATE", "Carcaça e Cortes", "Vísceras e Miúdos",
+            "taxa_carcaca", "taxa_visceras", "percentual_condenados"
         ]
-        .groupby("PARTE_PADRONIZADA", as_index=False)
-        .agg(TOTAL=("TOTAL_PARTES_AFETADAS", "sum"))
-        .sort_values("TOTAL", ascending=True)
-        .tail(10)
-    )
 
-    fig_partes = px.bar(
-        df_partes_top,
-        x="TOTAL",
-        y="PARTE_PADRONIZADA",
-        orientation="h",
-        text_auto=",.0f",
-        labels={"TOTAL": "Registros", "PARTE_PADRONIZADA": "Parte Afetada"},
-        color="TOTAL",
-        color_continuous_scale="Reds",
-        template="plotly_white"
-    )
-    fig_partes.update_layout(coloraxis_showscale=False,
-                             margin=dict(l=0, r=0, t=10, b=0))
-    st.plotly_chart(fig_partes, use_container_width=True)
-
-    with col_graf2:
-        st.subheader("explicação - Top 10 UFs por Taxa de Condenação")
-
-UF_PARA_REGIAO = {uf: reg for reg,
-                  ufs in REGIOES.items() if ufs for uf in ufs}
-st.subheader("📈 Evolução Mensal do Índice de Condenação")
-
-if "REGIAO" not in dados_filtrados.columns:
-    dados_filtrados["REGIAO"] = dados_filtrados["UF_PROCEDENCIA"].map(
-        UF_PARA_REGIAO)
-
-coluna_grupo = "REGIAO" if recorte_regiao == "Brasil" else "UF_PROCEDENCIA"
-titulo_legenda = "Região" if recorte_regiao == "Brasil" else "Estado (UF)"
-
-df_linha = (
-    dados_filtrados
-    .groupby(["DATA", coluna_grupo], as_index=False)
-    .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
-)
-df_linha["percentual_condenados"] = (
-    df_linha["CONDENADO"] / df_linha["ABATE"]) * 100
-
-fig_linha = px.line(
-    df_linha.sort_values("DATA"),
-    x="DATA",
-    y="percentual_condenados",
-    color=coluna_grupo,
-    markers=True,
-    labels={"DATA": "Mês/Ano",
-            "percentual_condenados": "Taxa Sanitária (%)"},
-    template="plotly_white"
-)
-
-fig_linha.update_yaxes(rangemode="tozero")
-fig_linha.update_layout(
-    legend_title_text=titulo_legenda,
-    margin=dict(l=0, r=0, t=10, b=0),
-    hovermode="x unified"
-)
-
-st.plotly_chart(fig_linha, use_container_width=True)
-
-if not dados_outliers.empty:
-    with st.expander("Ver registros atípicos isolados pelo filtro de qualidade"):
-        st.write(
-            "Abaixo estão os registros originais da base que apresentaram inconsistências de proporção:")
         st.dataframe(
-            dados_outliers[["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
-                            "ABATE", "CONDENADO_TOTAL", "percentual_condenados"]],
+            dados_filtrados[colunas_tabela].sort_values(
+                ["ANO", "MES", "UF_PROCEDENCIA"]),
             use_container_width=True,
             hide_index=True
         )
-# tabela de dados consolidados
-st.subheader("Tabela de Dados Consolidados")
 
-colunas_tabela = [
-    "ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
-    "ABATE", "Carcaça e Cortes", "Vísceras e Miúdos",
-    "taxa_carcaca", "taxa_visceras", "percentual_condenados"
-]
+        with st.expander("Métodos, Fontes e Limitações"):
+            st.markdown(
+                """
+                **Fonte dos dados:** Sistema de Informações Gerenciais do Serviço de Inspeção Federal (SIGSIF).
 
-st.dataframe(
-    dados_filtrados[colunas_tabela].sort_values(
-        ["ANO", "MES", "UF_PROCEDENCIA"]),
-    use_container_width=True,
-    hide_index=True
-)
+                **Metodologia de Agrupamento:**
+                * **Carcaça e Cortes:** Inclui registros em carcaças inteiras, meias carcaças, quartos e paletas.
+                * **Vísceras e Miúdos:** Inclui lesões registradas em órgãos e vísceras (fígado, pulmão, rins, etc.).
+                * **Amostragens/Coletas:** Registros de coleta fiscal (PNCRC) foram excluídos da contagem de lesões sanitárias.
 
-with st.expander("Métodos, Fontes e Limitações"):
-    st.markdown(
-        """
-        **Fonte dos dados:** Sistema de Informações Gerenciais do Serviço de Inspeção Federal (SIGSIF).
-
-        **Metodologia de Agrupamento:**
-        * **Carcaça e Cortes:** Inclui registros em carcaças inteiras, meias carcaças, quartos e paletas.
-        * **Vísceras e Miúdos:** Inclui lesões registradas em órgãos e vísceras (fígado, pulmão, rins, etc.).
-        * **Amostragens/Coletas:** Registros de coleta fiscal (PNCRC) foram excluídos da contagem de lesões sanitárias.
-
-        **Fórmula:** $\\text{Taxa (\\%)} = \\left( \\frac{\\sum \\text{Registros de Condenções}}{\\sum \\text{Animais Abatidos}} \\right) \\times 100$
-        """
-    )
+                **Fórmula:** $\\text{Taxa (\\%)} = \\left( \\frac{\\sum \\text{Registros de Condenções}}{\\sum \\text{Animais Abatidos}} \\right) \\times 100$
+                """
+            )
 
 # aba 2 doenças e condições
 with tab_doencas:
