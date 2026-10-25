@@ -11,6 +11,165 @@ st.set_page_config(page_title="Vigilância Sanitária - Abate e Condenação",
                    page_icon=":bar_chart:",
                    layout="wide")
 
+def aplicar_estilo_css():
+    st.markdown(
+        """
+        <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* Tipografia Global */
+        html, body, [class*="css"] {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* 1. Fundo Global da Aplicação (Azul Bem Claro) */
+        .stApp {
+            background-color: #EBF3FA !important;
+        }
+
+        /* 2. Estilização dos Cards de Métricas (st.metric) */
+        div[data-testid="stMetric"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #D1E7DD !important;
+            border-radius: 14px !important;
+            padding: 16px 20px !important;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12) !important;
+            transition: all 0.25s ease-in-out !important;
+            min-height: 110px !important; /* Altura mínima para acomodar 2 linhas de texto */
+        }
+
+        /* Força a remoção de ellipsis e permite quebra em TODOS os elementos filhos do rótulo e valor */
+        div[data-testid="stMetricLabel"],
+        div[data-testid="stMetricLabel"] *,
+        div[data-testid="stMetricValue"],
+        div[data-testid="stMetricValue"] * {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            word-break: break-word !important;
+            overflow: visible !important;
+            text-overflow: unset !important;
+        }
+
+        /* Ajuste de tamanho do Rótulo (Título) */
+        div[data-testid="stMetricLabel"] label {
+            font-size: 0.80rem !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Ajuste do tamanho da fonte e espaçamento do Valor */
+        div[data-testid="stMetricValue"] {
+            font-size: 1.15rem !important; /* Reduzido levemente para caber diagnósticos longos */
+            font-weight: 700 !important;
+            color: #0F172A !important;
+            line-height: 1.25 !important;
+            margin-top: 4px !important;
+        }
+
+        /* 3. Containers de Gráficos e Blocos (st.container com borda) */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #D1E7DD !important;
+            border-radius: 16px !important;
+            padding: 16px !important;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.10) !important;
+        }
+
+        /* 4. Moldura Automática para Gráficos Plotly */
+        div[data-testid="stPlotlyChart"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 16px !important;
+            padding: 12px !important;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.10) !important;
+        }
+
+        /* 5. Customização Elegante das Abas (st.tabs) */
+        button[data-baseweb="tab"] {
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+            color: #64748B !important;
+            padding: 10px 20px !important;
+            border-radius: 10px !important;
+            background-color: transparent !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #0F172A !important;
+            background-color: #FFFFFF !important;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.15) !important;
+        }
+
+        /* Permite quebra de linha e ajusta tamanho do RÓTULO (Título) */
+        div[data-testid="stMetricLabel"] > label {
+            font-size: 0.80rem !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: normal !important; /* Permite quebra de linha */
+            word-wrap: break-word !important;
+        }
+
+        /* Permite quebra de linha e reduz a fonte do VALOR da Métrica */
+        div[data-testid="stMetricValue"] > div {
+            font-size: 1.25rem !important; /* Reduzido de 1.8rem para caber diagnósticos longos */
+            font-weight: 700 !important;
+            color: #0F172A !important;
+            white-space: normal !important; /* Permite quebra de linha */
+            word-break: break-word !important; /* Quebra palavras muito longas */
+            line-height: 1.2 !important;
+        }
+
+        /* Permite quebra de linha e ajusta tamanho do RÓTULO (Título) */
+        div[data-testid="stMetricLabel"] > label {
+            font-size: 0.80rem !important;
+            font-weight: 600 !important;
+            color: #475569 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: normal !important; /* Permite quebra de linha */
+            word-wrap: break-word !important;
+        }
+
+        /* Permite quebra de linha e reduz a fonte do VALOR da Métrica */
+        div[data-testid="stMetricValue"] > div {
+            font-size: 1.25rem !important; /* Reduzido de 1.8rem para caber diagnósticos longos */
+            font-weight: 700 !important;
+            color: #0F172A !important;
+            white-space: normal !important; /* Permite quebra de linha */
+            word-break: break-word !important; /* Quebra palavras muito longas */
+            line-height: 1.2 !important;
+        }
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def formatar_grafico_plotly(fig):
+    """Garante fundo branco e eixos harmonizados dentro do container do Plotly."""
+    fig.update_layout(
+        paper_bgcolor="rgba(255,255,255,1)",
+        plot_bgcolor="rgba(255,255,255,1)",
+        font=dict(family="Inter, sans-serif", color="#334155"),
+        margin=dict(l=15, r=15, t=35, b=15),
+        xaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            title=None
+        )
+    )
+    return fig
+
+aplicar_estilo_css()
 
 if "cadeia_selecionada" not in st.session_state:
     st.session_state["cadeia_selecionada"] = None  # None = Tela Inicia
@@ -246,7 +405,7 @@ def renderizar_tela_inicial():
         """
         <div style='text-align: center; margin-bottom: 40px;'>
             <h1 style='font-size: 2.5rem; font-weight: 800; color: #0F172A; margin-bottom: 8px;'>
-                🛡️ Portal de Vigilância Sanitária — SIGSIF
+                Portal de Vigilância Sanitária — SIGSIF
             </h1>
             <p style='font-size: 1.1rem; color: #64748B; max-width: 700px; margin: 0 auto;'>
                 Plataforma integrada de inteligência sanitária para análise epidemiológica de abates, 
@@ -267,7 +426,7 @@ def renderizar_tela_inicial():
                 """
                 • **Painel de Abates e Condenações:** Acompanhamento de perdas estruturais (carcaça) e parciais (vísceras).\n
                 • **Análise Geográfica:** Mapeamento de risco sanitário por UF e região.\n
-                • **Módulo SE_10:** Vigilância e diagnóstico de enfermidades específicas.
+                • **Módulo doenças:** Vigilância e diagnóstico de enfermidades específicas.
                 """
             )
             st.markdown("<br>", unsafe_allow_html=True)
@@ -301,124 +460,11 @@ def exibir_botao_voltar():
         st.rerun()
     st.sidebar.markdown("---")
 
-# -----------------------------------------------------------------------------
-# DESIGN SYSTEM & INJEÇÃO DE CSS CUSTOMIZADO
-# -----------------------------------------------------------------------------
-# -----------------------------------------------------------------------------
-# DESIGN SYSTEM CUSTOMIZADO (FUNDO AZUL CLARO + CARDS BRANCOS COM SOMBRA ESVERDEADA)
-# -----------------------------------------------------------------------------
-
-
-def aplicar_estilo_css():
-    st.markdown(
-        """
-        <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-        /* Tipografia Global */
-        html, body, [class*="css"] {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-
-        /* 1. Fundo Global da Aplicação (Azul Bem Claro) */
-        .stApp {
-            background-color: #EBF3FA !important;
-        }
-
-        /* 2. Estilização dos Cards de Métricas (st.metric) */
-        div[data-testid="stMetric"] {
-            background-color: #FFFFFF !important;
-            border: 1px solid #D1E7DD !important;
-            border-radius: 14px !important;
-            padding: 18px 22px !important;
-            /* Sombra esverdeada suave (rgba em tons de verde/menta) */
-            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12) !important;
-            transition: all 0.25s ease-in-out !important;
-        }
-        div[data-testid="stMetric"]:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 22px rgba(16, 185, 129, 0.20) !important;
-            border-color: #A3E635 !important;
-        }
-
-        /* Rótulos e Valores das Métricas */
-        div[data-testid="stMetricLabel"] > label {
-            font-size: 0.85rem !important;
-            font-weight: 600 !important;
-            color: #475569 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        div[data-testid="stMetricValue"] > div {
-            font-size: 1.8rem !important;
-            font-weight: 700 !important;
-            color: #0F172A !important;
-        }
-
-        /* 3. Containers de Gráficos e Blocos (st.container com borda) */
-        div[data-testid="stVerticalBlockBorderWrapper"] {
-            background-color: #FFFFFF !important;
-            border: 1px solid #D1E7DD !important;
-            border-radius: 16px !important;
-            padding: 16px !important;
-            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.10) !important;
-        }
-
-        /* 4. Moldura Automática para Gráficos Plotly */
-        div[data-testid="stPlotlyChart"] {
-            background-color: #FFFFFF !important;
-            border: 1px solid #E2E8F0 !important;
-            border-radius: 16px !important;
-            padding: 12px !important;
-            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.10) !important;
-        }
-
-        /* 5. Customização Elegante das Abas (st.tabs) */
-        button[data-baseweb="tab"] {
-            font-size: 0.95rem !important;
-            font-weight: 600 !important;
-            color: #64748B !important;
-            padding: 10px 20px !important;
-            border-radius: 10px !important;
-            background-color: transparent !important;
-        }
-        button[data-baseweb="tab"][aria-selected="true"] {
-            color: #0F172A !important;
-            background-color: #FFFFFF !important;
-            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.15) !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-def formatar_grafico_plotly(fig):
-    """Garante fundo branco e eixos harmonizados dentro do container do Plotly."""
-    fig.update_layout(
-        paper_bgcolor="rgba(255,255,255,1)",
-        plot_bgcolor="rgba(255,255,255,1)",
-        font=dict(family="Inter, sans-serif", color="#334155"),
-        margin=dict(l=15, r=15, t=35, b=15),
-        xaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
-        yaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            title=None
-        )
-    )
-    return fig
-
 # Dashboard de bovinos e bubalinos
-
 
 def renderizar_dashboard_bovinos():
     exibir_botao_voltar()
-    st.title("📊 Dashboard Abate e Condenação — Bovinos & Bubalinos")
+    st.title("Dashboard Abate e Condenação — Bovinos & Bubalinos")
 
     # filtros dinâmicos e interativos com Streamlit
     dados_pais, df_condenacao_bruta = carregar_dados()
@@ -899,7 +945,7 @@ def renderizar_dashboard_bovinos():
     # tab 3 - estatística e modelagem
 
     with tab_estatistica:
-        st.subheader("📈 Modelagem Estatística e Riscos Epidemiológicos")
+        st.subheader("Modelagem Estatística e Riscos Epidemiológicos")
         st.caption(
             "Aplicações estatísticas avançadas para estimativa de fatores de risco (GLM Poisson) e análise de variabilidade.")
 
@@ -911,7 +957,7 @@ def renderizar_dashboard_bovinos():
             # 1. MODELO GLM POISSON (RAZÃO DE TAXA DE INCIDÊNCIA - IRR)
             # ---------------------------------------------------------------------
             st.markdown(
-                "##### 🧪 1. Estimativa de Fatores de Risco (GLM Poisson)")
+                "1. Estimativa de Fatores de Risco (GLM Poisson)")
 
             # Preparação da base para regressão
             df_model = dados_filtrados[dados_filtrados["ABATE"] > 0].copy()
@@ -1008,7 +1054,7 @@ def renderizar_dashboard_bovinos():
             col_st1, col_st2 = st.columns(2)
 
             with col_st1:
-                st.markdown("##### 📊 2. Variabilidade da Taxa por Estado (UF)")
+                st.markdown("2. Variabilidade da Taxa por Estado (UF)")
 
                 fig_box = px.box(
                     dados_filtrados,
@@ -1025,7 +1071,7 @@ def renderizar_dashboard_bovinos():
                 st.plotly_chart(fig_box, use_container_width=True)
 
             with col_st2:
-                st.markdown("##### 📉 3. Linha de Tendência Ponderada (OLS)")
+                st.markdown("3. Linha de Tendência Ponderada (OLS)")
 
                 df_tend = (
                     dados_filtrados
