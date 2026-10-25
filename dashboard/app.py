@@ -4,13 +4,16 @@ import plotly.express as px
 import streamlit as st
 import json
 import numpy as np
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
 
-st.set_page_config(page_title="Dashboard Abate e condenação em frigoríficos",
+st.set_page_config(page_title="Vigilância Sanitária - Abate e Condenação",
                    page_icon=":bar_chart:",
                    layout="wide")
 
-st.title("Dashboard Abate e condenação em frigoríficos")
-st.caption("Este dashboard apresenta informações sobre o abate e condenação em frigoríficos, permitindo uma análise visual dos dados.")
+
+if "cadeia_selecionada" not in st.session_state:
+    st.session_state["cadeia_selecionada"] = None  # None = Tela Inicia
 
 # Caminho relativo para o diretório de dados, ajustado para funcionar tanto em execução local quanto em ambiente de nuvem
 BASE_DIR = Path(__file__).parent if "__file__" in locals() else Path.cwd()
@@ -37,8 +40,10 @@ siglas_por_nome = {
     "Tocantins": "TO"
 }
 
-# Formatação de números e percentuais
+UF_PARA_REGIAO = {uf: reg for reg, ufs in REGIOES.items() if ufs for uf in ufs}
 
+#funções utilitárias para padronização de nomes e formatação de números
+# Formatação de números e percentuais
 
 def formata_numero(valor: float) -> str:
     return f"{valor:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -48,8 +53,6 @@ def formata_percentual(valor: float) -> str:
     return f"{valor:.2f}%".replace(".", ",")
 
 # Funções de categorização e padronização de partes e órgãos
-
-
 def categorizar_parte(parte: str) -> str:
     if pd.isna(parte):
         return "Outros"
@@ -84,9 +87,8 @@ def padronizar_nome_parte(parte: str) -> str:
     }
     return correcoes.get(p, p)
 
+
 # camada de dados e cache para otimizar o carregamento
-
-
 @st.cache_data(ttl=3600, show_spinner="Carregando dados das doenças...")
 def carregar_dados_doencas() -> pd.DataFrame:
     caminho_doenca = DATA_DIR / "tratados" / \
@@ -230,475 +232,784 @@ def carregar_malha_estados() -> dict:
 
     return malha_estados
 
+#tela inicial
 
-dados_pais, df_condenacao_bruta = carregar_dados()
-geo_estados = carregar_malha_estados()
-df_doenca_bruto = carregar_dados_doencas()
+def renderizar_tela_inicial():
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Cabeçalho Principal
+    st.markdown(
+        """
+        <div style='text-align: center; margin-bottom: 40px;'>
+            <h1 style='font-size: 2.5rem; font-weight: 800; color: #0F172A; margin-bottom: 8px;'>
+                🛡️ Portal de Vigilância Sanitária — SIGSIF
+            </h1>
+            <p style='font-size: 1.1rem; color: #64748B; max-width: 700px; margin: 0 auto;'>
+                Plataforma integrada de inteligência sanitária para análise epidemiológica de abates, 
+                condenações e patologias em frigoríficos sob inspeção federal.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-# filtros dinâmicos e interativos com Streamlit
+    col1, col2 = st.columns(2, gap="large")
 
-st.sidebar.header("Filtros de Analise")
-recorte_regiao = st.sidebar.radio("Região Geográfica", list(REGIOES.keys()))
+    with col1:
+        with st.container(border=True):
+            st.markdown("### 🐮 Bovinos & Bubalinos")
+            st.caption("Cadeia de Ruminantes")
+            st.markdown(
+                """
+                • **Painel de Abates e Condenações:** Acompanhamento de perdas estruturais (carcaça) e parciais (vísceras).\n
+                • **Análise Geográfica:** Mapeamento de risco sanitário por UF e região.\n
+                • **Módulo SE_10:** Vigilância e diagnóstico de enfermidades específicas.
+                """
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Acessar Painel de Ruminantes", use_container_width=True, type="primary"):
+                st.session_state["cadeia_selecionada"] = "bovinos"
+                st.rerun()
 
-if REGIOES[recorte_regiao] is not None:
-    dados_base = dados_pais[dados_pais["UF_PROCEDENCIA"].isin(
-        REGIOES[recorte_regiao])].copy()
-else:
-    dados_base = dados_pais.copy()
+    with col2:
+        with st.container(border=True):
+            st.markdown("### 🐷 Suínos")
+            st.caption("Cadeia de Suinocultura")
+            st.markdown(
+                """
+                • **Monitoramento de Lesões de Abate:** Abscessos, pneumonia, cisticercose suína e contaminações.\n
+                • **Indicadores Industriais:** Taxas de aproveitamento e descarte em frigoríficos.\n
+                • **Rastreabilidade por Procedência:** Mapeamento regional de riscos sanitários.
+                """
+            )
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Acessar Painel de Suínos", use_container_width=True):
+                st.session_state["cadeia_selecionada"] = "suinos"
+                st.rerun()
 
-anos_disponiveis = sorted(dados_base["ANO"].dropna().unique())
-ufs_disponiveis = sorted(dados_base["UF_PROCEDENCIA"].dropna().unique())
-especies_disponiveis = sorted(dados_base["ESPECIE"].dropna().unique())
+#botão de voltar para a tela inicial
+def exibir_botao_voltar():
+    st.sidebar.markdown("Navegação")
+    if st.sidebar.button("Voltar para a Tela Inicial", use_container_width=True):
+        st.session_state["cadeia_selecionada"] = None
+        st.rerun()
+    st.sidebar.markdown("---")
 
-anos = st.sidebar.multiselect(
-    "Ano", options=anos_disponiveis, default=anos_disponiveis)
-ufs = st.sidebar.multiselect(
-    "Unidade Federativa", options=ufs_disponiveis, default=ufs_disponiveis)
-especie = st.sidebar.multiselect(
-    "Espécie", options=especies_disponiveis, default=especies_disponiveis)
+# -----------------------------------------------------------------------------
+# DESIGN SYSTEM & INJEÇÃO DE CSS CUSTOMIZADO
+# -----------------------------------------------------------------------------
+def aplicar_estilo_css():
+    st.markdown(
+        """
+        <style>
+        /* Tipografia Global */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        html, body, [class*="css"] {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
 
-st.sidebar.markdown("---")
-st.sidebar.header("Qualidade e Sanitização")
-remover_outliers = st.sidebar.checkbox(
-    "🧹 Remover Picos Atípicos (> 200%)",
-    value=True,
-    help="Filtra erros de digitação e registros inconsistentes do SIGSIF (ex: SC 05/2024) para evitar a distorção da escala do mapa e dos gráficos."
-)
+        # Background suave da área principal
+        .stApp {
+            background-color: #FAFAFA;
+        }
 
-dados_filtrados = dados_base[
-    dados_base["ANO"].isin(anos) &
-    dados_base["UF_PROCEDENCIA"].isin(ufs) &
-    dados_base["ESPECIE"].isin(especie)
-].copy()
+        # Estilização dos Cards de Métricas (st.metric)
+        div[data-testid="stMetric"] {
+            background-color: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.2s ease-in-out;
+        }
+        div[data-testid="stMetric"]:hover {
+            box-shadow: 0 6px 12px rgba(0,0,0,0.06);
+            border-color: #CBD5E1;
+            transform: translateY(-2px);
+        }
+        
+        # Rótulos das Métricas
+        div[data-testid="stMetricLabel"] > label {
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
+            color: #64748B !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-df_doencas_filtrado = df_doenca_bruto[
-    (df_doenca_bruto["ANO"].isin(anos)) &
-    (df_doenca_bruto["UF_PROCEDENCIA"].isin(ufs)) &
-    (df_doenca_bruto["ESPECIE"].isin(especie))
-].copy()
+        # Valores das Métricas
+        div[data-testid="stMetricValue"] > div {
+            font-size: 1.8rem !important;
+            font-weight: 700 !important;
+            color: #0F172A !important;
+        }
 
-# Se o filtro regional estiver ativo (ex: Sudeste, Sul, etc.)
-if REGIOES[recorte_regiao] is not None:
-    df_doencas_filtrado = df_doencas_filtrado[
-        df_doencas_filtrado["UF_PROCEDENCIA"].isin(REGIOES[recorte_regiao])
+        # Customização das Abas (st.tabs)
+        button[data-baseweb="tab"] {
+            font-size: 1rem !important;
+            font-weight: 600 !important;
+            color: #64748B !important;
+            padding: 12px 20px !important;
+            border-radius: 8px !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #1E293B !important;
+            background-color: #F1F5F9 !important;
+        }
+
+        # Botões Principais da Sidebar/Tela Inicial
+        .stButton>button {
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            transition: all 0.2s ease !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+def formatar_grafico_plotly(fig):
+    """Aplica o tema visual padronizado aos gráficos Plotly."""
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", color="#334155"),
+        margin=dict(l=10, r=10, t=30, b=10),
+        xaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            title=None
+        )
+    )
+    return fig
+
+#Dashboard de bovinos e bubalinos
+def renderizar_dashboard_bovinos():
+    exibir_botao_voltar()
+    st.title("📊 Dashboard Abate e Condenação — Bovinos & Bubalinos")
+
+    # filtros dinâmicos e interativos com Streamlit
+    dados_pais, df_condenacao_bruta = carregar_dados()
+    geo_estados = carregar_malha_estados()
+    df_doenca_bruto = carregar_dados_doencas()
+
+    st.sidebar.header("Filtros de Analise")
+    recorte_regiao = st.sidebar.radio("Região Geográfica", list(REGIOES.keys()))
+
+    if REGIOES[recorte_regiao] is not None:
+        dados_base = dados_pais[dados_pais["UF_PROCEDENCIA"].isin(
+            REGIOES[recorte_regiao])].copy()
+    else:
+        dados_base = dados_pais.copy()
+
+    anos_disponiveis = sorted(dados_base["ANO"].dropna().unique())
+    ufs_disponiveis = sorted(dados_base["UF_PROCEDENCIA"].dropna().unique())
+    especies_disponiveis = sorted(dados_base["ESPECIE"].dropna().unique())
+
+    anos = st.sidebar.multiselect(
+        "Ano", options=anos_disponiveis, default=anos_disponiveis)
+    ufs = st.sidebar.multiselect(
+        "Unidade Federativa", options=ufs_disponiveis, default=ufs_disponiveis)
+    especie = st.sidebar.multiselect(
+        "Espécie", options=especies_disponiveis, default=especies_disponiveis)
+
+    st.sidebar.markdown("---")
+    st.sidebar.header("Qualidade e Sanitização")
+    remover_outliers = st.sidebar.checkbox(
+        "Remover Picos Atípicos (> 200%)",
+        value=True,
+        help="Filtra erros de digitação e registros inconsistentes do SIGSIF (ex: SC 05/2024) para evitar a distorção da escala do mapa e dos gráficos."
+    )
+
+    # Filtragem da base de dados com base nos filtros selecionados
+    dados_filtrados = dados_base[
+        dados_base["ANO"].isin(anos) &
+        dados_base["UF_PROCEDENCIA"].isin(ufs) &
+        dados_base["ESPECIE"].isin(especie)
     ].copy()
 
-dados_outliers = dados_filtrados[dados_filtrados["percentual_condenados"] > 200.0].copy(
-)
+    # Filtro de doenças e diagnósticos
+    if not df_doenca_bruto.empty:
+        df_doencas_filtrado = df_doenca_bruto[
+            (df_doenca_bruto["ANO"].isin(anos)) &
+            (df_doenca_bruto["UF_PROCEDENCIA"].isin(ufs)) &
+            (df_doenca_bruto["ESPECIE"].isin(especie))
+        ].copy()
 
-if remover_outliers:
-    dados_filtrados = dados_filtrados[dados_filtrados["percentual_condenados"] <= 200.0].copy(
-    )
+    # Se o filtro regional estiver ativo (ex: Sudeste, Sul, etc.)
+        if REGIOES[recorte_regiao] is not None:
+            df_doencas_filtrado = df_doencas_filtrado[
+                df_doencas_filtrado["UF_PROCEDENCIA"].isin(REGIOES[recorte_regiao])
+            ].copy()
 
-if dados_filtrados.empty:
-    st.warning("Nenhum registro encontrado para os filtros selecionados.")
-    st.stop()
+        dados_outliers = dados_filtrados[dados_filtrados["percentual_condenados"] > 200.0].copy(
+        )
 
-if not dados_outliers.empty and remover_outliers:
-    qtd_outliers = len(dados_outliers)
-    st.warning(
-        f"🧹 **Filtro de Qualidade Ativo:** {qtd_outliers} registro(s) com inconsistência de digitação/taxa > 200% foi(foram) ocultado(s) "
-        f"para preservar a escala do mapa e dos gráficos. *(Ex: SC em 05/2024)*."
-    )
-
-# divisão das abas
-tab_geral, tab_doencas, tab_estatistica = st.tabs([
-    "Panorama Geral",
-    "Doenças e Condições",
-    "Estatística e Modelagem"
-])
-
-# Aba "Panorama Geral" - KPIs, Mapa e Gráficos
-# KPIS e métricas principais
-with tab_geral:
-    st.subheader("📊 Indicadores Gerais de Abate e Condenação")
-    st.caption(
-        "Painel interativo de vigilância sanitária baseado nos dados de abate e condenação")
-
-    if df_doencas_filtrado.empty:
-        st.info(
-            "⚠️ Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados.")
     else:
-        total_abatidos = dados_filtrados["ABATE"].sum()
-        total_carcaca = dados_filtrados["Carcaça e Cortes"].sum()
-        total_visceras = dados_filtrados["Vísceras e Miúdos"].sum()
+        df_doencas_filtrado = pd.DataFrame()  # DataFrame vazio se não houver dados de doenças
 
-        taxa_carcaca = (total_carcaca / total_abatidos *
-                        100) if total_abatidos > 0 else 0
-        taxa_visceras = (total_visceras / total_abatidos *
-                         100) if total_abatidos > 0 else 0
+    dados_outliers = dados_filtrados[dados_filtrados["percentual_condenados"] > 200.0].copy()
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Volume de Abate", formata_numero(total_abatidos))
-        c2.metric("Condenações de Carcaça", formata_numero(total_carcaca),
-                  delta=f"{taxa_carcaca:.2f}% dos abates", delta_color="inverse")
-        c3.metric("Condenações de Vísceras/Miúdos", formata_numero(total_visceras),
-                  delta=f"{taxa_visceras:.2f}% dos abates", delta_color="off")
-        c4.metric("Registros de Ocorrências", formata_numero(
-            total_carcaca + total_visceras))
+    if remover_outliers:
+        dados_filtrados = dados_filtrados[dados_filtrados["percentual_condenados"] <= 200.0].copy()
 
-        st.info(
-            "💡 **Nota Técnica Sanitária:** O índice exibido representa o número de **ocorrências notificadas por 100 animais abatidos**. "
-            "A categoria *Carcaça e Cortes* refere-se a condenações totais/estruturais, enquanto *Vísceras/Miúdos* refere-se a condenações parciais de órgãos."
-        )
+    # divisão das abas
+    tab_geral, tab_doencas, tab_estatistica = st.tabs([
+        "Panorama Geral",
+        "Doenças e Condições",
+        "Estatística e Modelagem"
+    ])
 
-        st.markdown("---")
+    # Aba "Panorama Geral" - KPIs, Mapa e Gráficos
+    # KPIS e métricas principais
+    with tab_geral:
+        st.subheader("Indicadores Gerais de Abate e Condenação")
+        st.caption(
+            "Painel interativo de vigilância sanitária baseado nos dados de abate e condenação")
 
-        # mapa interativo com Plotly Express
-        st.subheader(
-            f"Indicadores Geográficos por UF — Anos: {', '.join(map(str, anos))}")
-
-        col_map_fig, col_map_ctrl = st.columns([3.5, 1])
-
-        with col_map_ctrl:
-            st.markdown("##### Métrica do Mapa")
-            metrica_mapa = st.radio(
-                "Visualizar por:",
-                options=["Taxa Sanitária (%)",
-                         "Volume Absoluto (Ocorrências)"],
-                index=0,
-                help=(
-                    "• Taxa Sanitária (%): Ocorrências a cada 100 abates (relevância epidemiológica).\n"
-                    "• Volume Absoluto: Total de condenações notificadas (escala operacional)."
-                )
-            )
-
-        resumo_mapa = (
-            dados_filtrados
-            .groupby("UF_PROCEDENCIA", as_index=False)
-            .agg(
-                ABATE=("ABATE", "sum"),
-                CONDENADO_CARCACA=("Carcaça e Cortes", "sum"),
-                CONDENADO_VISCERAS=("Vísceras e Miúdos", "sum"),
-                CONDENADO_TOTAL=("CONDENADO_TOTAL", "sum")
-            )
-        )
-        resumo_mapa["INDICE_CONDENACAO"] = (
-            resumo_mapa["CONDENADO_TOTAL"] / resumo_mapa["ABATE"]) * 100
-        resumo_mapa = resumo_mapa[resumo_mapa["ABATE"] > 0].copy()
-
-        # Configuração dinâmica das variáveis do Plotly
-        if metrica_mapa == "Taxa Sanitária (%)":
-            coluna_cor = "INDICE_CONDENACAO"
-            rotulo_cor = "Taxa (%)"
-            hover_fmt = "<b>%{location}</b><br>Taxa Sanitária: %{z:.2f}%<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
+        if df_doencas_filtrado.empty:
+            st.warning(
+                "Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados.")
         else:
-            coluna_cor = "CONDENADO_TOTAL"
-            rotulo_cor = "Ocorrências"
-            hover_fmt = "<b>%{location}</b><br>Ocorrências: %{z:,.0f}<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
-
-        fig_mapa = px.choropleth(
-            resumo_mapa,
-            geojson=geo_estados,
-            locations="UF_PROCEDENCIA",
-            featureidkey="properties.UF_SIGLA",
-            color=coluna_cor,
-            custom_data=["ABATE", "CONDENADO_TOTAL", "INDICE_CONDENACAO"],
-            color_continuous_scale="YlOrRd",
-            labels={coluna_cor: rotulo_cor},
-        )
-
-        fig_mapa.update_geos(fitbounds="locations", visible=False,
-                             projection_type="mercator")
-        fig_mapa.update_layout(margin=dict(l=0, r=0, t=10, b=0),
-                               coloraxis_colorbar_title=rotulo_cor)
-        fig_mapa.update_traces(hovertemplate=hover_fmt)
-
-        with col_map_fig:
-            evento = st.plotly_chart(
-                fig_mapa,
-                use_container_width=True,
-                key="mapa_brasil",
-                on_select="rerun",
-                selection_mode="points",
-                config={"displayModeBar": False}
-            )
-
-        pontos_selecionados = evento.get("selection", {}).get("points", [])
-        if pontos_selecionados:
-            uf_selecionada = pontos_selecionados[-1]["location"]
-            df_uf = resumo_mapa[resumo_mapa["UF_PROCEDENCIA"]
-                                == uf_selecionada]
-
-            if not df_uf.empty:
-                detalhe_uf = df_uf.iloc[0]
-                st.info(
-                    f"**Detalhes selecionados — {uf_selecionada}:** "
-                    f"Abates: {formata_numero(detalhe_uf['ABATE'])} | "
-                    f"Carcaças Condenadas: {formata_numero(detalhe_uf['CONDENADO_CARCACA'])} | "
-                    f"Vísceras Condenadas: {formata_numero(detalhe_uf['CONDENADO_VISCERAS'])} | "
-                    f"Taxa Sanitária Global: {formata_percentual(detalhe_uf['INDICE_CONDENACAO'])}"
+            if not dados_outliers.empty and remover_outliers:
+                st.warning(
+                    f"🧹 **Filtro de Qualidade Ativo:** {len(dados_outliers)} registro(s) com inconsistência de digitação/taxa > 200% foi(foram) ocultado(s) "
+                    f"para preservar a escala do mapa e dos gráficos. *(Ex: SC em 05/2024)*."
                 )
-        else:
-            st.caption(
-                "💡 Clique em um estado no mapa para ver o detalhamento isolado.")
 
-        # gráfico de ranking de condenações por UF
+            total_abatidos = dados_filtrados["ABATE"].sum()
+            total_carcaca = dados_filtrados["Carcaça e Cortes"].sum()
+            total_visceras = dados_filtrados["Vísceras e Miúdos"].sum()
 
-        # Filtra a base bruta com base nos anos e UFs selecionados
-        col_graf1, col_graf2 = st.columns([1, 1])
+            taxa_carcaca = (total_carcaca / total_abatidos *
+                            100) if total_abatidos > 0 else 0
+            taxa_visceras = (total_visceras / total_abatidos *
+                            100) if total_abatidos > 0 else 0
 
-        with col_graf1:
-            st.subheader("Top 10 Partes Afetadas por Condenação")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Volume de Abate", formata_numero(total_abatidos))
+            c2.metric("Condenações de Carcaça", formata_numero(total_carcaca),
+                    delta=f"{taxa_carcaca:.2f}% dos abates", delta_color="inverse")
+            c3.metric("Condenações de Vísceras/Miúdos", formata_numero(total_visceras),
+                    delta=f"{taxa_visceras:.2f}% dos abates", delta_color="off")
+            c4.metric("Registros de Ocorrências", formata_numero(
+                total_carcaca + total_visceras))
 
-            df_partes_top = (
-                df_condenacao_bruta[
-                    (df_condenacao_bruta["ANO"].isin(anos)) &
-                    (df_condenacao_bruta["UF_PROCEDENCIA"].isin(ufs)) &
-                    (df_condenacao_bruta["CATEGORIA_SANITY"]
-                     != "Coletas / Amostragens")
-                ]
-                .groupby("PARTE_PADRONIZADA", as_index=False)
-                .agg(TOTAL=("TOTAL_PARTES_AFETADAS", "sum"))
-                .sort_values("TOTAL", ascending=True)
-                .tail(10)
+            st.info(
+                "💡 **Nota Técnica Sanitária:** O índice exibido representa o número de **ocorrências notificadas por 100 animais abatidos**. "
+                "A categoria *Carcaça e Cortes* refere-se a condenações totais/estruturais, enquanto *Vísceras/Miúdos* refere-se a condenações parciais de órgãos."
             )
 
-            fig_partes = px.bar(
-                df_partes_top,
-                x="TOTAL",
-                y="PARTE_PADRONIZADA",
-                orientation="h",
-                text_auto=",.0f",
-                labels={"TOTAL": "Registros",
-                        "PARTE_PADRONIZADA": "Parte Afetada"},
-                color="TOTAL",
-                color_continuous_scale="Reds",
-                template="plotly_white"
-            )
-            fig_partes.update_layout(coloraxis_showscale=False,
-                                     margin=dict(l=0, r=0, t=10, b=0))
-            st.plotly_chart(fig_partes, use_container_width=True)
+            st.markdown("---")
 
-            with col_graf2:
-                st.subheader("explicação - Top 10 UFs por Taxa de Condenação")
+            # mapa interativo com Plotly Express
+            st.subheader(
+                f"Indicadores Geográficos por UF — Anos: {', '.join(map(str, anos))}")
 
-        UF_PARA_REGIAO = {uf: reg for reg,
-                          ufs in REGIOES.items() if ufs for uf in ufs}
-        st.subheader("📈 Evolução Mensal do Índice de Condenação")
+            col_map_fig, col_map_ctrl = st.columns([3.5, 1])
 
-        if "REGIAO" not in dados_filtrados.columns:
-            dados_filtrados["REGIAO"] = dados_filtrados["UF_PROCEDENCIA"].map(
-                UF_PARA_REGIAO)
-
-        coluna_grupo = "REGIAO" if recorte_regiao == "Brasil" else "UF_PROCEDENCIA"
-        titulo_legenda = "Região" if recorte_regiao == "Brasil" else "Estado (UF)"
-
-        df_linha = (
-            dados_filtrados
-            .groupby(["DATA", coluna_grupo], as_index=False)
-            .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
-        )
-        df_linha["percentual_condenados"] = (
-            df_linha["CONDENADO"] / df_linha["ABATE"]) * 100
-
-        fig_linha = px.line(
-            df_linha.sort_values("DATA"),
-            x="DATA",
-            y="percentual_condenados",
-            color=coluna_grupo,
-            markers=True,
-            labels={"DATA": "Mês/Ano",
-                    "percentual_condenados": "Taxa Sanitária (%)"},
-            template="plotly_white"
-        )
-
-        fig_linha.update_yaxes(rangemode="tozero")
-        fig_linha.update_layout(
-            legend_title_text=titulo_legenda,
-            margin=dict(l=0, r=0, t=10, b=0),
-            hovermode="x unified"
-        )
-
-        st.plotly_chart(fig_linha, use_container_width=True)
-
-        if not dados_outliers.empty:
-            with st.expander("Ver registros atípicos isolados pelo filtro de qualidade"):
-                st.write(
-                    "Abaixo estão os registros originais da base que apresentaram inconsistências de proporção:")
-                st.dataframe(
-                    dados_outliers[["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
-                                    "ABATE", "CONDENADO_TOTAL", "percentual_condenados"]],
-                    use_container_width=True,
-                    hide_index=True
+            with col_map_ctrl:
+                st.markdown("##### Métrica do Mapa")
+                metrica_mapa = st.radio(
+                    "Visualizar por:",
+                    options=["Taxa Sanitária (%)",
+                            "Volume Absoluto (Ocorrências)"],
+                    index=0,
+                    help=(
+                        "• Taxa Sanitária (%): Ocorrências a cada 100 abates (relevância epidemiológica).\n"
+                        "• Volume Absoluto: Total de condenações notificadas (escala operacional)."
+                    )
                 )
-        # tabela de dados consolidados
-        st.subheader("Tabela de Dados Consolidados")
 
-        colunas_tabela = [
-            "ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
-            "ABATE", "Carcaça e Cortes", "Vísceras e Miúdos",
-            "taxa_carcaca", "taxa_visceras", "percentual_condenados"
-        ]
-
-        st.dataframe(
-            dados_filtrados[colunas_tabela].sort_values(
-                ["ANO", "MES", "UF_PROCEDENCIA"]),
-            use_container_width=True,
-            hide_index=True
-        )
-
-        with st.expander("Métodos, Fontes e Limitações"):
-            st.markdown(
-                """
-                **Fonte dos dados:** Sistema de Informações Gerenciais do Serviço de Inspeção Federal (SIGSIF).
-
-                **Metodologia de Agrupamento:**
-                * **Carcaça e Cortes:** Inclui registros em carcaças inteiras, meias carcaças, quartos e paletas.
-                * **Vísceras e Miúdos:** Inclui lesões registradas em órgãos e vísceras (fígado, pulmão, rins, etc.).
-                * **Amostragens/Coletas:** Registros de coleta fiscal (PNCRC) foram excluídos da contagem de lesões sanitárias.
-
-                **Fórmula:** $\\text{Taxa (\\%)} = \\left( \\frac{\\sum \\text{Registros de Condenções}}{\\sum \\text{Animais Abatidos}} \\right) \\times 100$
-                """
-            )
-
-# aba 2 doenças e condições
-with tab_doencas:
-    st.subheader("🦠 Análise Epidemiológica de Doenças e Diagnósticos")
-    st.caption(
-        "Painel interativo de vigilância sanitária baseado nos dados do arquivo SE_10.")
-
-    if df_doencas_filtrado.empty:
-        st.info(
-            "⚠️ Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados.")
-    else:
-        # 1. KPIs da Aba 2
-        col_d1, col_d2, col_d3 = st.columns(3)
-
-        total_casos = df_doencas_filtrado["QTD_OCORRENCIAS"].sum()
-
-        agrupado_diag = (
-            df_doencas_filtrado
-            .groupby("DIAGNOSTICO_PADRONIZADO")["QTD_OCORRENCIAS"]
-            .sum()
-        )
-
-        top_diag_nome = agrupado_diag.idxmax()
-        total_top_diag = agrupado_diag.max()
-        pct_top_diag = (total_top_diag / total_casos *
-                        100) if total_casos > 0 else 0
-
-        col_d1.metric("Registros de Doenças", formata_numero(total_casos))
-        col_d2.metric("Principal Diagnóstico", str(top_diag_nome))
-        col_d3.metric("Prevalência do Top 1", f"{pct_top_diag:.1f}% dos casos")
-
-        st.markdown("---")
-
-        # 2. Ranking e Distribuição
-        col_c1, col_c2 = st.columns([1.8, 1.2])
-
-        with col_c1:
-            st.markdown("##### 🧩 Treemap de Proporção dos Diagnósticos")
-            df_tree = (
-                df_doencas_filtrado
-                .groupby("DIAGNOSTICO_PADRONIZADO", as_index=False)
-                .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
-                .sort_values("TOTAL", ascending=False)
-                .head(15)  # Top 15 para não poluir o gráfico
-            )
-
-            fig_tree = px.treemap(
-                df_tree,
-                path=["DIAGNOSTICO_PADRONIZADO"],
-                values="TOTAL",
-                color="TOTAL",
-                color_continuous_scale="Reds",
-                template="plotly_white"
-            )
-            fig_tree.update_layout(margin=dict(l=0, r=0, t=10, b=0))
-            st.plotly_chart(fig_tree, use_container_width=True)
-
-        with col_c2:
-            st.markdown("##### 🏆 Top 10 Enfermidades com Maior Incidência")
-            df_top_diag = (
-                df_doencas_filtrado
-                .groupby("DIAGNOSTICO_PADRONIZADO", as_index=False)
-                .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
-                .sort_values("TOTAL", ascending=True)
-                .tail(10)
-            )
-
-            fig_bar_diag = px.bar(
-                df_top_diag,
-                x="TOTAL",
-                y="DIAGNOSTICO_PADRONIZADO",
-                orientation="h",
-                text_auto=",.0f",
-                labels={"TOTAL": "Ocorrências",
-                        "DIAGNOSTICO_PADRONIZADO": "Diagnóstico"},
-                color="TOTAL",
-                color_continuous_scale="OrRd",
-                template="plotly_white"
-            )
-            fig_bar_diag.update_layout(
-                coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0))
-            st.plotly_chart(fig_bar_diag, use_container_width=True)
-
-        st.markdown("---")
-
-        # 3. Análise Isolada de uma Enfermidade
-        st.markdown("##### 🔍 Investigação por Doença Específica")
-
-        lista_diagnosticos = sorted(
-            df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"].unique())
-        diag_selecionado = st.selectbox(
-            "Selecione um diagnóstico para detalhar:", lista_diagnosticos)
-
-        df_diag_isolado = df_doencas_filtrado[df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"]
-                                              == diag_selecionado]
-
-        col_det1, col_det2 = st.columns(2)
-
-        with col_det1:
-            st.markdown(
-                f"**Distribuição por Estado (UF) — {diag_selecionado}:**")
-            df_uf_diag = (
-                df_diag_isolado
+            resumo_mapa = (
+                dados_filtrados
                 .groupby("UF_PROCEDENCIA", as_index=False)
-                .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
-                .sort_values("TOTAL", ascending=False)
-                .head(8)
+                .agg(
+                    ABATE=("ABATE", "sum"),
+                    CONDENADO_CARCACA=("Carcaça e Cortes", "sum"),
+                    CONDENADO_VISCERAS=("Vísceras e Miúdos", "sum"),
+                    CONDENADO_TOTAL=("CONDENADO_TOTAL", "sum")
+                )
             )
-            fig_uf_diag = px.bar(
-                df_uf_diag,
-                x="UF_PROCEDENCIA",
-                y="TOTAL",
-                text_auto=",.0f",
-                labels={"TOTAL": "Casos", "UF_PROCEDENCIA": "UF"},
-                color_discrete_sequence=["#B22222"]
-            )
-            fig_uf_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
-            st.plotly_chart(fig_uf_diag, use_container_width=True)
+            resumo_mapa["INDICE_CONDENACAO"] = (
+                resumo_mapa["CONDENADO_TOTAL"] / resumo_mapa["ABATE"]) * 100
+            resumo_mapa = resumo_mapa[resumo_mapa["ABATE"] > 0].copy()
 
-        with col_det2:
-            st.markdown(
-                f"**Evolução Temporal dos Casos — {diag_selecionado}:**")
+            # Configuração dinâmica das variáveis do Plotly
+            if metrica_mapa == "Taxa Sanitária (%)":
+                coluna_cor = "INDICE_CONDENACAO"
+                rotulo_cor = "Taxa (%)"
+                hover_fmt = "<b>%{location}</b><br>Taxa Sanitária: %{z:.2f}%<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
+            else:
+                coluna_cor = "CONDENADO_TOTAL"
+                rotulo_cor = "Ocorrências"
+                hover_fmt = "<b>%{location}</b><br>Ocorrências: %{z:,.0f}<br>Abates: %{customdata[0]:,.0f}<extra></extra>"
 
-            df_diag_isolado["DATA"] = pd.to_datetime(
-                dict(year=df_diag_isolado["ANO"],
-                     month=df_diag_isolado["MES"], day=1),
-                errors="coerce"
-            )
-
-            df_tempo_diag = (
-                df_diag_isolado
-                .groupby("DATA", as_index=False)
-                .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
-                .sort_values("DATA")
+            fig_mapa = px.choropleth(
+                resumo_mapa,
+                geojson=geo_estados,
+                locations="UF_PROCEDENCIA",
+                featureidkey="properties.UF_SIGLA",
+                color=coluna_cor,
+                custom_data=["ABATE", "CONDENADO_TOTAL", "INDICE_CONDENACAO"],
+                color_continuous_scale="YlOrRd",
+                labels={coluna_cor: rotulo_cor},
             )
 
-            fig_tempo_diag = px.line(
-                df_tempo_diag,
+            fig_mapa.update_geos(fitbounds="locations", visible=False,
+                                projection_type="mercator")
+            fig_mapa.update_layout(margin=dict(l=0, r=0, t=10, b=0),
+                                coloraxis_colorbar_title=rotulo_cor)
+            fig_mapa.update_traces(hovertemplate=hover_fmt)
+
+            with col_map_fig:
+                evento = st.plotly_chart(
+                    fig_mapa,
+                    use_container_width=True,
+                    key="mapa_brasil",
+                    on_select="rerun",
+                    selection_mode="points",
+                    config={"displayModeBar": False}
+                )
+
+            pontos_selecionados = evento.get("selection", {}).get("points", [])
+            if pontos_selecionados:
+                uf_selecionada = pontos_selecionados[-1]["location"]
+                df_uf = resumo_mapa[resumo_mapa["UF_PROCEDENCIA"]
+                                    == uf_selecionada]
+
+                if not df_uf.empty:
+                    detalhe_uf = df_uf.iloc[0]
+                    st.info(
+                        f"**Detalhes selecionados — {uf_selecionada}:** "
+                        f"Abates: {formata_numero(detalhe_uf['ABATE'])} | "
+                        f"Carcaças Condenadas: {formata_numero(detalhe_uf['CONDENADO_CARCACA'])} | "
+                        f"Vísceras Condenadas: {formata_numero(detalhe_uf['CONDENADO_VISCERAS'])} | "
+                        f"Taxa Sanitária Global: {formata_percentual(detalhe_uf['INDICE_CONDENACAO'])}"
+                    )
+            else:
+                st.caption(
+                    "💡 Clique em um estado no mapa para ver o detalhamento isolado.")
+
+            # gráfico de ranking de condenações por UF
+
+            # Filtra a base bruta com base nos anos e UFs selecionados
+            col_graf1, col_graf2 = st.columns([1, 1])
+
+            with col_graf1:
+                st.subheader("Top 10 Partes Afetadas por Condenação")
+
+                df_partes_top = (
+                    df_condenacao_bruta[
+                        (df_condenacao_bruta["ANO"].isin(anos)) &
+                        (df_condenacao_bruta["UF_PROCEDENCIA"].isin(ufs)) &
+                        (df_condenacao_bruta["CATEGORIA_SANITY"]
+                        != "Coletas / Amostragens")
+                    ]
+                    .groupby("PARTE_PADRONIZADA", as_index=False)
+                    .agg(TOTAL=("TOTAL_PARTES_AFETADAS", "sum"))
+                    .sort_values("TOTAL", ascending=True)
+                    .tail(10)
+                )
+
+                fig_partes = px.bar(
+                    df_partes_top,
+                    x="TOTAL",
+                    y="PARTE_PADRONIZADA",
+                    orientation="h",
+                    text_auto=",.0f",
+                    labels={"TOTAL": "Registros",
+                            "PARTE_PADRONIZADA": "Parte Afetada"},
+                    color="TOTAL",
+                    color_continuous_scale="Reds",
+                    template="plotly_white"
+                )
+                fig_partes.update_layout(coloraxis_showscale=False,
+                                        margin=dict(l=0, r=0, t=10, b=0))
+                st.plotly_chart(fig_partes, use_container_width=True)
+
+                with col_graf2:
+                    st.subheader("explicação - Top 10 UFs por Taxa de Condenação")
+
+            UF_PARA_REGIAO = {uf: reg for reg,
+                            ufs in REGIOES.items() if ufs for uf in ufs}
+            st.subheader("📈 Evolução Mensal do Índice de Condenação")
+
+            if "REGIAO" not in dados_filtrados.columns:
+                dados_filtrados["REGIAO"] = dados_filtrados["UF_PROCEDENCIA"].map(
+                    UF_PARA_REGIAO)
+
+            coluna_grupo = "REGIAO" if recorte_regiao == "Brasil" else "UF_PROCEDENCIA"
+            titulo_legenda = "Região" if recorte_regiao == "Brasil" else "Estado (UF)"
+
+            df_linha = (
+                dados_filtrados
+                .groupby(["DATA", coluna_grupo], as_index=False)
+                .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
+            )
+            df_linha["percentual_condenados"] = (
+                df_linha["CONDENADO"] / df_linha["ABATE"]) * 100
+
+            fig_linha = px.line(
+                df_linha.sort_values("DATA"),
                 x="DATA",
-                y="TOTAL",
+                y="percentual_condenados",
+                color=coluna_grupo,
                 markers=True,
-                labels={"DATA": "Mês/Ano", "TOTAL": "Casos Notificados"},
+                labels={"DATA": "Mês/Ano",
+                        "percentual_condenados": "Taxa Sanitária (%)"},
                 template="plotly_white"
             )
-            fig_tempo_diag.update_traces(line_color="#CD5C5C")
-            fig_tempo_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
-            st.plotly_chart(fig_tempo_diag, use_container_width=True)
 
-# tab 3 - estatística e modelagem
-with tab_estatistica:
-    st.subheader("Estatística e Modelagem de Dados")
+            fig_linha.update_yaxes(rangemode="tozero")
+            fig_linha.update_layout(
+                legend_title_text=titulo_legenda,
+                margin=dict(l=0, r=0, t=10, b=0),
+                hovermode="x unified"
+            )
+
+            st.plotly_chart(fig_linha, use_container_width=True)
+
+            if not dados_outliers.empty:
+                with st.expander("Ver registros atípicos isolados pelo filtro de qualidade"):
+                    st.write(
+                        "Abaixo estão os registros originais da base que apresentaram inconsistências de proporção:")
+                    st.dataframe(
+                        dados_outliers[["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
+                                        "ABATE", "CONDENADO_TOTAL", "percentual_condenados"]],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+            # tabela de dados consolidados
+            st.subheader("Tabela de Dados Consolidados")
+
+            colunas_tabela = [
+                "ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
+                "ABATE", "Carcaça e Cortes", "Vísceras e Miúdos",
+                "taxa_carcaca", "taxa_visceras", "percentual_condenados"
+            ]
+
+            st.dataframe(
+                dados_filtrados[colunas_tabela].sort_values(
+                    ["ANO", "MES", "UF_PROCEDENCIA"]),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            with st.expander("Métodos, Fontes e Limitações"):
+                st.markdown(
+                    """
+                    **Fonte dos dados:** Sistema de Informações Gerenciais do Serviço de Inspeção Federal (SIGSIF).
+
+                    **Metodologia de Agrupamento:**
+                    * **Carcaça e Cortes:** Inclui registros em carcaças inteiras, meias carcaças, quartos e paletas.
+                    * **Vísceras e Miúdos:** Inclui lesões registradas em órgãos e vísceras (fígado, pulmão, rins, etc.).
+                    * **Amostragens/Coletas:** Registros de coleta fiscal (PNCRC) foram excluídos da contagem de lesões sanitárias.
+
+                    **Fórmula:** $\\text{Taxa (\\%)} = \\left( \\frac{\\sum \\text{Registros de Condenções}}{\\sum \\text{Animais Abatidos}} \\right) \\times 100$
+                    """
+                )
+
+    # aba 2 doenças e condições
+    with tab_doencas:
+        st.subheader("Análise Epidemiológica de Doenças e Diagnósticos")
+        st.caption(
+            "Painel interativo de vigilância sanitária baseado nos dados do arquivo Doença por procedência, permitindo uma análise detalhada das ocorrências de doenças e diagnósticos.")
+
+        if df_doencas_filtrado.empty:
+            st.info(
+                "⚠️ Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados.")
+        else:
+            # 1. KPIs da Aba 2
+            col_d1, col_d2, col_d3 = st.columns(3)
+
+            total_casos = df_doencas_filtrado["QTD_OCORRENCIAS"].sum()
+
+            agrupado_diag = (
+                df_doencas_filtrado
+                .groupby("DIAGNOSTICO_PADRONIZADO")["QTD_OCORRENCIAS"]
+                .sum()
+            )
+
+            top_diag_nome = agrupado_diag.idxmax()
+            total_top_diag = agrupado_diag.max()
+            pct_top_diag = (total_top_diag / total_casos *
+                            100) if total_casos > 0 else 0
+
+            col_d1.metric("Registros de Doenças", formata_numero(total_casos))
+            col_d2.metric("Principal Diagnóstico", str(top_diag_nome))
+            col_d3.metric("Prevalência do Top 1", f"{pct_top_diag:.1f}% dos casos")
+
+            st.markdown("---")
+
+            # 2. Ranking e Distribuição
+            col_c1, col_c2 = st.columns([1.8, 1.2])
+
+            with col_c1:
+                st.markdown("Treemap de Proporção dos Diagnósticos")
+                df_tree = (
+                    df_doencas_filtrado
+                    .groupby("CLASSIFICACAO", as_index=False)
+                    .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
+                    .sort_values("TOTAL", ascending=False)
+                    .head(15)  # Top 15 para não poluir o gráfico
+                )
+
+                fig_tree = px.treemap(
+                    df_tree,
+                    path=["CLASSIFICACAO"],
+                    values="TOTAL",
+                    color="TOTAL",
+                    color_continuous_scale="Reds",
+                    template="plotly_white"
+                )
+                fig_tree.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+                st.plotly_chart(fig_tree, use_container_width=True)
+
+            with col_c2:
+                st.markdown("Top 10 Enfermidades com Maior Incidência")
+                df_top_diag = (
+                    df_doencas_filtrado
+                    .groupby("DIAGNOSTICO_PADRONIZADO", as_index=False)
+                    .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
+                    .sort_values("TOTAL", ascending=True)
+                    .tail(10)
+                )
+
+                fig_bar_diag = px.bar(
+                    df_top_diag,
+                    x="TOTAL",
+                    y="DIAGNOSTICO_PADRONIZADO",
+                    orientation="h",
+                    text_auto=",.0f",
+                    labels={"TOTAL": "Ocorrências",
+                            "DIAGNOSTICO_PADRONIZADO": "Diagnóstico"},
+                    color="TOTAL",
+                    color_continuous_scale="OrRd",
+                    template="plotly_white"
+                )
+                fig_bar_diag.update_layout(
+                    coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0))
+                st.plotly_chart(fig_bar_diag, use_container_width=True)
+
+            st.markdown("---")
+
+            # 3. Análise Isolada de uma Enfermidade
+            st.markdown("Investigação por Doença Específica")
+
+            lista_diagnosticos = sorted(
+                df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"].unique())
+            diag_selecionado = st.selectbox(
+                "Selecione um diagnóstico para detalhar:", lista_diagnosticos)
+
+            df_diag_isolado = df_doencas_filtrado[df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"]
+                                                == diag_selecionado]
+
+            col_det1, col_det2 = st.columns(2)
+
+            with col_det1:
+                st.markdown(
+                    f"**Distribuição por Estado (UF) — {diag_selecionado}:**")
+                df_uf_diag = (
+                    df_diag_isolado
+                    .groupby("UF_PROCEDENCIA", as_index=False)
+                    .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
+                    .sort_values("TOTAL", ascending=False)
+                    .head(8)
+                )
+                fig_uf_diag = px.bar(
+                    df_uf_diag,
+                    x="UF_PROCEDENCIA",
+                    y="TOTAL",
+                    text_auto=",.0f",
+                    labels={"TOTAL": "Casos", "UF_PROCEDENCIA": "UF"},
+                    color_discrete_sequence=["#B22222"]
+                )
+                fig_uf_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+                st.plotly_chart(fig_uf_diag, use_container_width=True)
+
+            with col_det2:
+                st.markdown(
+                    f"**Evolução Temporal dos Casos — {diag_selecionado}:**")
+
+                df_diag_isolado["DATA"] = pd.to_datetime(
+                    dict(year=df_diag_isolado["ANO"],
+                        month=df_diag_isolado["MES"], day=1),
+                    errors="coerce"
+                )
+
+                df_tempo_diag = (
+                    df_diag_isolado
+                    .groupby("DATA", as_index=False)
+                    .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
+                    .sort_values("DATA")
+                )
+
+                fig_tempo_diag = px.line(
+                    df_tempo_diag,
+                    x="DATA",
+                    y="TOTAL",
+                    markers=True,
+                    labels={"DATA": "Mês/Ano", "TOTAL": "Casos Notificados"},
+                    template="plotly_white"
+                )
+                fig_tempo_diag.update_traces(line_color="#CD5C5C")
+                fig_tempo_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+                st.plotly_chart(fig_tempo_diag, use_container_width=True)
+
+    # tab 3 - estatística e modelagem
+
+    with tab_estatistica:
+        st.subheader("📈 Modelagem Estatística e Riscos Epidemiológicos")
+        st.caption("Aplicações estatísticas avançadas para estimativa de fatores de risco (GLM Poisson) e análise de variabilidade.")
+
+        if dados_filtrados.empty or len(dados_filtrados) < 5:
+            st.warning("⚠️ Dados insuficientes para ajuste dos modelos estatísticos no recorte selecionado.")
+        else:
+            # ---------------------------------------------------------------------
+            # 1. MODELO GLM POISSON (RAZÃO DE TAXA DE INCIDÊNCIA - IRR)
+            # ---------------------------------------------------------------------
+            st.markdown("##### 🧪 1. Estimativa de Fatores de Risco (GLM Poisson)")
+            
+            # Preparação da base para regressão
+            df_model = dados_filtrados[dados_filtrados["ABATE"] > 0].copy()
+            
+            # Variável de tempo contínuo (em meses desde o início da série)
+            min_ano = df_model["ANO"].min()
+            df_model["TEMPO_MES"] = (df_model["ANO"] - min_ano) * 12 + df_model["MES"]
+            df_model["LOG_ABATE"] = np.log(df_model["ABATE"])
+            
+            # Ajuste defensivo do modelo GLM via statsmodels
+            try:
+                # Ajuste de GLM Poisson com offset
+                fórmula = "CONDENADO_TOTAL ~ TEMPO_MES"
+                if df_model["ESPECIE"].nunique() > 1:
+                    fórmula += " + C(ESPECIE)"
+                    
+                modelo_glm = smf.glm(
+                    formula=fórmula,
+                    data=df_model,
+                    family=sm.families.Poisson(),
+                    offset=df_model["LOG_ABATE"]
+                ).fit()
+
+                # Extração dos coeficientes e conversão para IRR (e^beta)
+                coef_df = pd.DataFrame({
+                    "Coeficiente (β)": modelo_glm.params,
+                    "IRR (e^β)": np.exp(modelo_glm.params),
+                    "Erro Padrão": modelo_glm.bse,
+                    "p-valor": modelo_glm.pvalues,
+                    "IC 95% Inferior": np.exp(modelo_glm.conf_int()[0]),
+                    "IC 95% Superior": np.exp(modelo_glm.conf_int()[1])
+                })
+
+                col_m1, col_m2 = st.columns([1.5, 1])
+
+                with col_m1:
+                    st.markdown("**Tabela de Estimadores e Risco Relativo (IRR):**")
+                    
+                    # Formatando a tabela para exibição amigável
+                    coef_formatado = coef_df.copy()
+                    coef_formatado["IRR (e^β)"] = coef_formatado["IRR (e^β)"].map("{:.4f}".format)
+                    coef_formatado["p-valor"] = coef_formatado["p-valor"].map(lambda x: "< 0.001" if x < 0.001 else f"{x:.4f}")
+                    coef_formatado["IC 95%"] = coef_formatado.apply(lambda r: f"[{r['IC 95% Inferior']:.3f} ; {r['IC 95% Superior']:.3f}]", axis=1)
+                    
+                    rotulos_variaveis = {
+                        "Intercept": "Constante (Taxa Base)",
+                        "C(ESPECIE)[T.Bubalino]": "Fator Espécie: Bubalino vs. Bovino",
+                        "TEMPO_MES": "Tendência Temporal (Variação Mensal)"
+                    }
+
+                    # Aplica a renomeação dos índices
+                    coef_formatado.index = coef_formatado.index.map(lambda x: rotulos_variaveis.get(x, x))
+
+                    st.dataframe(
+                        coef_formatado[["IRR (e^β)", "p-valor", "IC 95%"]],
+                        use_container_width=True
+                    )
+
+                with col_m2:
+                    st.markdown("**💡 Interpretação Epidemiológica:**")
+                    irr_tempo = np.exp(modelo_glm.params.get("TEMPO_MES", 0))
+                    var_mensal = (irr_tempo - 1) * 100
+                    
+                    if var_mensal > 0:
+                        st.error(f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **aumento médio de {var_mensal:.2f}% a cada mês** no período analisado.")
+                    else:
+                        st.success(f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **redução média de {abs(var_mensal):.2f}% a cada mês** no período analisado.")
+                    
+                    p_val_tempo = modelo_glm.pvalues.get("TEMPO_MES", 1.0)
+                    if p_val_tempo < 0.05:
+                        st.caption(f"✓ Tendência estatisticamente significante (p-valor = {p_val_tempo:.4f} < 0.05).")
+                    else:
+                        st.caption(f"⚠️ Tendência sem significância estatística conclusiva (p-valor = {p_val_tempo:.4f} ≥ 0.05).")
+
+            except Exception as e:
+                st.warning(f"Não foi possível ajustar o modelo GLM Poisson: `{e}`")
+
+            st.markdown("---")
+
+            # ---------------------------------------------------------------------
+            # 2. ANÁLISE DE DISPERSÃO E VARIABILIDADE (BOXPLOT POR UF)
+            # ---------------------------------------------------------------------
+            col_st1, col_st2 = st.columns(2)
+
+            with col_st1:
+                st.markdown("##### 📊 2. Variabilidade da Taxa por Estado (UF)")
+                
+                fig_box = px.box(
+                    dados_filtrados,
+                    x="UF_PROCEDENCIA",
+                    y="percentual_condenados",
+                    color="UF_PROCEDENCIA",
+                    labels={"UF_PROCEDENCIA": "UF", "percentual_condenados": "Taxa Sanitária (%)"},
+                    template="plotly_white"
+                )
+                fig_box.update_layout(showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
+                fig_box = formatar_grafico_plotly(fig_box)
+                st.plotly_chart(fig_box, use_container_width=True)
+
+            with col_st2:
+                st.markdown("##### 📉 3. Linha de Tendência Ponderada (OLS)")
+                
+                df_tend = (
+                    dados_filtrados
+                    .groupby("DATA", as_index=False)
+                    .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
+                )
+                df_tend["taxa"] = (df_tend["CONDENADO"] / df_tend["ABATE"]) * 100
+
+                fig_trend = px.scatter(
+                    df_tend,
+                    x="DATA",
+                    y="taxa",
+                    trendline="ols",
+                    trendline_color_override="#B22222",
+                    labels={"DATA": "Mês/Ano", "taxa": "Taxa Sanitária (%)"},
+                    template="plotly_white"
+                )
+                fig_trend.update_layout(margin=dict(l=0, r=0, t=10, b=0))
+                fig_trend = formatar_grafico_plotly(fig_trend)
+                st.plotly_chart(fig_trend, use_container_width=True)
+
+#Dashboard de suínos
+def renderizar_dashboard_suinos():
+    exibir_botao_voltar()
+    st.title("🐷 Dashboard Sanitário de Suínos")
+    st.caption("Painel de monitoramento de abates e condenações na suinocultura.")
+    
+    # [Aqui entra a carga das tabelas de suínos: ex: suinos_abate.parquet e suinos_condenacao.parquet]
+    st.info("🚧 Módulo de Suínos em desenvolvimento. Carregue os arquivos Parquet de suínos nesta seção.")
+
+#Roteador principal para renderizar os dashboards de acordo com a seleção do usuário
+if st.session_state["cadeia_selecionada"] is None:
+    renderizar_tela_inicial()
+elif st.session_state["cadeia_selecionada"] == "bovinos":
+    renderizar_dashboard_bovinos()
+elif st.session_state["cadeia_selecionada"] == "suinos":
+    renderizar_dashboard_suinos()
