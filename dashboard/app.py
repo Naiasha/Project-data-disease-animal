@@ -42,8 +42,9 @@ siglas_por_nome = {
 
 UF_PARA_REGIAO = {uf: reg for reg, ufs in REGIOES.items() if ufs for uf in ufs}
 
-#funções utilitárias para padronização de nomes e formatação de números
+# funções utilitárias para padronização de nomes e formatação de números
 # Formatação de números e percentuais
+
 
 def formata_numero(valor: float) -> str:
     return f"{valor:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -53,6 +54,8 @@ def formata_percentual(valor: float) -> str:
     return f"{valor:.2f}%".replace(".", ",")
 
 # Funções de categorização e padronização de partes e órgãos
+
+
 def categorizar_parte(parte: str) -> str:
     if pd.isna(parte):
         return "Outros"
@@ -232,11 +235,12 @@ def carregar_malha_estados() -> dict:
 
     return malha_estados
 
-#tela inicial
+# tela inicial
+
 
 def renderizar_tela_inicial():
     st.markdown("<br>", unsafe_allow_html=True)
-    
+
     # Cabeçalho Principal
     st.markdown(
         """
@@ -287,7 +291,9 @@ def renderizar_tela_inicial():
                 st.session_state["cadeia_selecionada"] = "suinos"
                 st.rerun()
 
-#botão de voltar para a tela inicial
+# botão de voltar para a tela inicial
+
+
 def exibir_botao_voltar():
     st.sidebar.markdown("Navegação")
     if st.sidebar.button("Voltar para a Tela Inicial", use_container_width=True):
@@ -298,83 +304,102 @@ def exibir_botao_voltar():
 # -----------------------------------------------------------------------------
 # DESIGN SYSTEM & INJEÇÃO DE CSS CUSTOMIZADO
 # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# DESIGN SYSTEM CUSTOMIZADO (FUNDO AZUL CLARO + CARDS BRANCOS COM SOMBRA ESVERDEADA)
+# -----------------------------------------------------------------------------
+
+
 def aplicar_estilo_css():
     st.markdown(
         """
         <style>
-        /* Tipografia Global */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* Tipografia Global */
         html, body, [class*="css"] {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
-        # Background suave da área principal
+        /* 1. Fundo Global da Aplicação (Azul Bem Claro) */
         .stApp {
-            background-color: #FAFAFA;
+            background-color: #EBF3FA !important;
         }
 
-        # Estilização dos Cards de Métricas (st.metric)
+        /* 2. Estilização dos Cards de Métricas (st.metric) */
         div[data-testid="stMetric"] {
-            background-color: #FFFFFF;
-            border: 1px solid #E2E8F0;
-            padding: 16px 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            transition: all 0.2s ease-in-out;
+            background-color: #FFFFFF !important;
+            border: 1px solid #D1E7DD !important;
+            border-radius: 14px !important;
+            padding: 18px 22px !important;
+            /* Sombra esverdeada suave (rgba em tons de verde/menta) */
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.12) !important;
+            transition: all 0.25s ease-in-out !important;
         }
         div[data-testid="stMetric"]:hover {
-            box-shadow: 0 6px 12px rgba(0,0,0,0.06);
-            border-color: #CBD5E1;
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 22px rgba(16, 185, 129, 0.20) !important;
+            border-color: #A3E635 !important;
         }
-        
-        # Rótulos das Métricas
+
+        /* Rótulos e Valores das Métricas */
         div[data-testid="stMetricLabel"] > label {
             font-size: 0.85rem !important;
             font-weight: 600 !important;
-            color: #64748B !important;
+            color: #475569 !important;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
-        # Valores das Métricas
         div[data-testid="stMetricValue"] > div {
             font-size: 1.8rem !important;
             font-weight: 700 !important;
             color: #0F172A !important;
         }
 
-        # Customização das Abas (st.tabs)
-        button[data-baseweb="tab"] {
-            font-size: 1rem !important;
-            font-weight: 600 !important;
-            color: #64748B !important;
-            padding: 12px 20px !important;
-            border-radius: 8px !important;
-        }
-        button[data-baseweb="tab"][aria-selected="true"] {
-            color: #1E293B !important;
-            background-color: #F1F5F9 !important;
+        /* 3. Containers de Gráficos e Blocos (st.container com borda) */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #D1E7DD !important;
+            border-radius: 16px !important;
+            padding: 16px !important;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.10) !important;
         }
 
-        # Botões Principais da Sidebar/Tela Inicial
-        .stButton>button {
-            border-radius: 8px !important;
+        /* 4. Moldura Automática para Gráficos Plotly */
+        div[data-testid="stPlotlyChart"] {
+            background-color: #FFFFFF !important;
+            border: 1px solid #E2E8F0 !important;
+            border-radius: 16px !important;
+            padding: 12px !important;
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.10) !important;
+        }
+
+        /* 5. Customização Elegante das Abas (st.tabs) */
+        button[data-baseweb="tab"] {
+            font-size: 0.95rem !important;
             font-weight: 600 !important;
-            transition: all 0.2s ease !important;
+            color: #64748B !important;
+            padding: 10px 20px !important;
+            border-radius: 10px !important;
+            background-color: transparent !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #0F172A !important;
+            background-color: #FFFFFF !important;
+            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.15) !important;
         }
         </style>
         """,
         unsafe_allow_html=True
     )
 
+
 def formatar_grafico_plotly(fig):
-    """Aplica o tema visual padronizado aos gráficos Plotly."""
+    """Garante fundo branco e eixos harmonizados dentro do container do Plotly."""
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(255,255,255,1)",
+        plot_bgcolor="rgba(255,255,255,1)",
         font=dict(family="Inter, sans-serif", color="#334155"),
-        margin=dict(l=10, r=10, t=30, b=10),
+        margin=dict(l=15, r=15, t=35, b=15),
         xaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
         yaxis=dict(showgrid=True, gridcolor="#F1F5F9", zeroline=False),
         legend=dict(
@@ -388,7 +413,9 @@ def formatar_grafico_plotly(fig):
     )
     return fig
 
-#Dashboard de bovinos e bubalinos
+# Dashboard de bovinos e bubalinos
+
+
 def renderizar_dashboard_bovinos():
     exibir_botao_voltar()
     st.title("📊 Dashboard Abate e Condenação — Bovinos & Bubalinos")
@@ -399,7 +426,8 @@ def renderizar_dashboard_bovinos():
     df_doenca_bruto = carregar_dados_doencas()
 
     st.sidebar.header("Filtros de Analise")
-    recorte_regiao = st.sidebar.radio("Região Geográfica", list(REGIOES.keys()))
+    recorte_regiao = st.sidebar.radio(
+        "Região Geográfica", list(REGIOES.keys()))
 
     if REGIOES[recorte_regiao] is not None:
         dados_base = dados_pais[dados_pais["UF_PROCEDENCIA"].isin(
@@ -444,19 +472,23 @@ def renderizar_dashboard_bovinos():
     # Se o filtro regional estiver ativo (ex: Sudeste, Sul, etc.)
         if REGIOES[recorte_regiao] is not None:
             df_doencas_filtrado = df_doencas_filtrado[
-                df_doencas_filtrado["UF_PROCEDENCIA"].isin(REGIOES[recorte_regiao])
+                df_doencas_filtrado["UF_PROCEDENCIA"].isin(
+                    REGIOES[recorte_regiao])
             ].copy()
 
         dados_outliers = dados_filtrados[dados_filtrados["percentual_condenados"] > 200.0].copy(
         )
 
     else:
-        df_doencas_filtrado = pd.DataFrame()  # DataFrame vazio se não houver dados de doenças
+        # DataFrame vazio se não houver dados de doenças
+        df_doencas_filtrado = pd.DataFrame()
 
-    dados_outliers = dados_filtrados[dados_filtrados["percentual_condenados"] > 200.0].copy()
+    dados_outliers = dados_filtrados[dados_filtrados["percentual_condenados"] > 200.0].copy(
+    )
 
     if remover_outliers:
-        dados_filtrados = dados_filtrados[dados_filtrados["percentual_condenados"] <= 200.0].copy()
+        dados_filtrados = dados_filtrados[dados_filtrados["percentual_condenados"] <= 200.0].copy(
+        )
 
     # divisão das abas
     tab_geral, tab_doencas, tab_estatistica = st.tabs([
@@ -489,14 +521,14 @@ def renderizar_dashboard_bovinos():
             taxa_carcaca = (total_carcaca / total_abatidos *
                             100) if total_abatidos > 0 else 0
             taxa_visceras = (total_visceras / total_abatidos *
-                            100) if total_abatidos > 0 else 0
+                             100) if total_abatidos > 0 else 0
 
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Volume de Abate", formata_numero(total_abatidos))
             c2.metric("Condenações de Carcaça", formata_numero(total_carcaca),
-                    delta=f"{taxa_carcaca:.2f}% dos abates", delta_color="inverse")
+                      delta=f"{taxa_carcaca:.2f}% dos abates", delta_color="inverse")
             c3.metric("Condenações de Vísceras/Miúdos", formata_numero(total_visceras),
-                    delta=f"{taxa_visceras:.2f}% dos abates", delta_color="off")
+                      delta=f"{taxa_visceras:.2f}% dos abates", delta_color="off")
             c4.metric("Registros de Ocorrências", formata_numero(
                 total_carcaca + total_visceras))
 
@@ -518,7 +550,7 @@ def renderizar_dashboard_bovinos():
                 metrica_mapa = st.radio(
                     "Visualizar por:",
                     options=["Taxa Sanitária (%)",
-                            "Volume Absoluto (Ocorrências)"],
+                             "Volume Absoluto (Ocorrências)"],
                     index=0,
                     help=(
                         "• Taxa Sanitária (%): Ocorrências a cada 100 abates (relevância epidemiológica).\n"
@@ -562,9 +594,9 @@ def renderizar_dashboard_bovinos():
             )
 
             fig_mapa.update_geos(fitbounds="locations", visible=False,
-                                projection_type="mercator")
+                                 projection_type="mercator")
             fig_mapa.update_layout(margin=dict(l=0, r=0, t=10, b=0),
-                                coloraxis_colorbar_title=rotulo_cor)
+                                   coloraxis_colorbar_title=rotulo_cor)
             fig_mapa.update_traces(hovertemplate=hover_fmt)
 
             with col_map_fig:
@@ -609,7 +641,7 @@ def renderizar_dashboard_bovinos():
                         (df_condenacao_bruta["ANO"].isin(anos)) &
                         (df_condenacao_bruta["UF_PROCEDENCIA"].isin(ufs)) &
                         (df_condenacao_bruta["CATEGORIA_SANITY"]
-                        != "Coletas / Amostragens")
+                         != "Coletas / Amostragens")
                     ]
                     .groupby("PARTE_PADRONIZADA", as_index=False)
                     .agg(TOTAL=("TOTAL_PARTES_AFETADAS", "sum"))
@@ -630,14 +662,15 @@ def renderizar_dashboard_bovinos():
                     template="plotly_white"
                 )
                 fig_partes.update_layout(coloraxis_showscale=False,
-                                        margin=dict(l=0, r=0, t=10, b=0))
+                                         margin=dict(l=0, r=0, t=10, b=0))
                 st.plotly_chart(fig_partes, use_container_width=True)
 
                 with col_graf2:
-                    st.subheader("explicação - Top 10 UFs por Taxa de Condenação")
+                    st.subheader(
+                        "explicação - Top 10 UFs por Taxa de Condenação")
 
             UF_PARA_REGIAO = {uf: reg for reg,
-                            ufs in REGIOES.items() if ufs for uf in ufs}
+                              ufs in REGIOES.items() if ufs for uf in ufs}
             st.subheader("📈 Evolução Mensal do Índice de Condenação")
 
             if "REGIAO" not in dados_filtrados.columns:
@@ -743,7 +776,8 @@ def renderizar_dashboard_bovinos():
 
             col_d1.metric("Registros de Doenças", formata_numero(total_casos))
             col_d2.metric("Principal Diagnóstico", str(top_diag_nome))
-            col_d3.metric("Prevalência do Top 1", f"{pct_top_diag:.1f}% dos casos")
+            col_d3.metric("Prevalência do Top 1",
+                          f"{pct_top_diag:.1f}% dos casos")
 
             st.markdown("---")
 
@@ -808,7 +842,7 @@ def renderizar_dashboard_bovinos():
                 "Selecione um diagnóstico para detalhar:", lista_diagnosticos)
 
             df_diag_isolado = df_doencas_filtrado[df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"]
-                                                == diag_selecionado]
+                                                  == diag_selecionado]
 
             col_det1, col_det2 = st.columns(2)
 
@@ -839,7 +873,7 @@ def renderizar_dashboard_bovinos():
 
                 df_diag_isolado["DATA"] = pd.to_datetime(
                     dict(year=df_diag_isolado["ANO"],
-                        month=df_diag_isolado["MES"], day=1),
+                         month=df_diag_isolado["MES"], day=1),
                     errors="coerce"
                 )
 
@@ -866,31 +900,35 @@ def renderizar_dashboard_bovinos():
 
     with tab_estatistica:
         st.subheader("📈 Modelagem Estatística e Riscos Epidemiológicos")
-        st.caption("Aplicações estatísticas avançadas para estimativa de fatores de risco (GLM Poisson) e análise de variabilidade.")
+        st.caption(
+            "Aplicações estatísticas avançadas para estimativa de fatores de risco (GLM Poisson) e análise de variabilidade.")
 
         if dados_filtrados.empty or len(dados_filtrados) < 5:
-            st.warning("⚠️ Dados insuficientes para ajuste dos modelos estatísticos no recorte selecionado.")
+            st.warning(
+                "⚠️ Dados insuficientes para ajuste dos modelos estatísticos no recorte selecionado.")
         else:
             # ---------------------------------------------------------------------
             # 1. MODELO GLM POISSON (RAZÃO DE TAXA DE INCIDÊNCIA - IRR)
             # ---------------------------------------------------------------------
-            st.markdown("##### 🧪 1. Estimativa de Fatores de Risco (GLM Poisson)")
-            
+            st.markdown(
+                "##### 🧪 1. Estimativa de Fatores de Risco (GLM Poisson)")
+
             # Preparação da base para regressão
             df_model = dados_filtrados[dados_filtrados["ABATE"] > 0].copy()
-            
+
             # Variável de tempo contínuo (em meses desde o início da série)
             min_ano = df_model["ANO"].min()
-            df_model["TEMPO_MES"] = (df_model["ANO"] - min_ano) * 12 + df_model["MES"]
+            df_model["TEMPO_MES"] = (
+                df_model["ANO"] - min_ano) * 12 + df_model["MES"]
             df_model["LOG_ABATE"] = np.log(df_model["ABATE"])
-            
+
             # Ajuste defensivo do modelo GLM via statsmodels
             try:
                 # Ajuste de GLM Poisson com offset
                 fórmula = "CONDENADO_TOTAL ~ TEMPO_MES"
                 if df_model["ESPECIE"].nunique() > 1:
                     fórmula += " + C(ESPECIE)"
-                    
+
                 modelo_glm = smf.glm(
                     formula=fórmula,
                     data=df_model,
@@ -911,14 +949,18 @@ def renderizar_dashboard_bovinos():
                 col_m1, col_m2 = st.columns([1.5, 1])
 
                 with col_m1:
-                    st.markdown("**Tabela de Estimadores e Risco Relativo (IRR):**")
-                    
+                    st.markdown(
+                        "**Tabela de Estimadores e Risco Relativo (IRR):**")
+
                     # Formatando a tabela para exibição amigável
                     coef_formatado = coef_df.copy()
-                    coef_formatado["IRR (e^β)"] = coef_formatado["IRR (e^β)"].map("{:.4f}".format)
-                    coef_formatado["p-valor"] = coef_formatado["p-valor"].map(lambda x: "< 0.001" if x < 0.001 else f"{x:.4f}")
-                    coef_formatado["IC 95%"] = coef_formatado.apply(lambda r: f"[{r['IC 95% Inferior']:.3f} ; {r['IC 95% Superior']:.3f}]", axis=1)
-                    
+                    coef_formatado["IRR (e^β)"] = coef_formatado["IRR (e^β)"].map(
+                        "{:.4f}".format)
+                    coef_formatado["p-valor"] = coef_formatado["p-valor"].map(
+                        lambda x: "< 0.001" if x < 0.001 else f"{x:.4f}")
+                    coef_formatado["IC 95%"] = coef_formatado.apply(
+                        lambda r: f"[{r['IC 95% Inferior']:.3f} ; {r['IC 95% Superior']:.3f}]", axis=1)
+
                     rotulos_variaveis = {
                         "Intercept": "Constante (Taxa Base)",
                         "C(ESPECIE)[T.Bubalino]": "Fator Espécie: Bubalino vs. Bovino",
@@ -926,7 +968,8 @@ def renderizar_dashboard_bovinos():
                     }
 
                     # Aplica a renomeação dos índices
-                    coef_formatado.index = coef_formatado.index.map(lambda x: rotulos_variaveis.get(x, x))
+                    coef_formatado.index = coef_formatado.index.map(
+                        lambda x: rotulos_variaveis.get(x, x))
 
                     st.dataframe(
                         coef_formatado[["IRR (e^β)", "p-valor", "IC 95%"]],
@@ -937,20 +980,25 @@ def renderizar_dashboard_bovinos():
                     st.markdown("**💡 Interpretação Epidemiológica:**")
                     irr_tempo = np.exp(modelo_glm.params.get("TEMPO_MES", 0))
                     var_mensal = (irr_tempo - 1) * 100
-                    
+
                     if var_mensal > 0:
-                        st.error(f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **aumento médio de {var_mensal:.2f}% a cada mês** no período analisado.")
+                        st.error(
+                            f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **aumento médio de {var_mensal:.2f}% a cada mês** no período analisado.")
                     else:
-                        st.success(f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **redução média de {abs(var_mensal):.2f}% a cada mês** no período analisado.")
-                    
+                        st.success(
+                            f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **redução média de {abs(var_mensal):.2f}% a cada mês** no período analisado.")
+
                     p_val_tempo = modelo_glm.pvalues.get("TEMPO_MES", 1.0)
                     if p_val_tempo < 0.05:
-                        st.caption(f"✓ Tendência estatisticamente significante (p-valor = {p_val_tempo:.4f} < 0.05).")
+                        st.caption(
+                            f"✓ Tendência estatisticamente significante (p-valor = {p_val_tempo:.4f} < 0.05).")
                     else:
-                        st.caption(f"⚠️ Tendência sem significância estatística conclusiva (p-valor = {p_val_tempo:.4f} ≥ 0.05).")
+                        st.caption(
+                            f"⚠️ Tendência sem significância estatística conclusiva (p-valor = {p_val_tempo:.4f} ≥ 0.05).")
 
             except Exception as e:
-                st.warning(f"Não foi possível ajustar o modelo GLM Poisson: `{e}`")
+                st.warning(
+                    f"Não foi possível ajustar o modelo GLM Poisson: `{e}`")
 
             st.markdown("---")
 
@@ -961,28 +1009,31 @@ def renderizar_dashboard_bovinos():
 
             with col_st1:
                 st.markdown("##### 📊 2. Variabilidade da Taxa por Estado (UF)")
-                
+
                 fig_box = px.box(
                     dados_filtrados,
                     x="UF_PROCEDENCIA",
                     y="percentual_condenados",
                     color="UF_PROCEDENCIA",
-                    labels={"UF_PROCEDENCIA": "UF", "percentual_condenados": "Taxa Sanitária (%)"},
+                    labels={"UF_PROCEDENCIA": "UF",
+                            "percentual_condenados": "Taxa Sanitária (%)"},
                     template="plotly_white"
                 )
-                fig_box.update_layout(showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
+                fig_box.update_layout(
+                    showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
                 fig_box = formatar_grafico_plotly(fig_box)
                 st.plotly_chart(fig_box, use_container_width=True)
 
             with col_st2:
                 st.markdown("##### 📉 3. Linha de Tendência Ponderada (OLS)")
-                
+
                 df_tend = (
                     dados_filtrados
                     .groupby("DATA", as_index=False)
                     .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
                 )
-                df_tend["taxa"] = (df_tend["CONDENADO"] / df_tend["ABATE"]) * 100
+                df_tend["taxa"] = (df_tend["CONDENADO"] /
+                                   df_tend["ABATE"]) * 100
 
                 fig_trend = px.scatter(
                     df_tend,
@@ -997,16 +1048,19 @@ def renderizar_dashboard_bovinos():
                 fig_trend = formatar_grafico_plotly(fig_trend)
                 st.plotly_chart(fig_trend, use_container_width=True)
 
-#Dashboard de suínos
+# Dashboard de suínos
+
+
 def renderizar_dashboard_suinos():
     exibir_botao_voltar()
     st.title("🐷 Dashboard Sanitário de Suínos")
     st.caption("Painel de monitoramento de abates e condenações na suinocultura.")
-    
+
     # [Aqui entra a carga das tabelas de suínos: ex: suinos_abate.parquet e suinos_condenacao.parquet]
     st.info("🚧 Módulo de Suínos em desenvolvimento. Carregue os arquivos Parquet de suínos nesta seção.")
 
-#Roteador principal para renderizar os dashboards de acordo com a seleção do usuário
+
+# Roteador principal para renderizar os dashboards de acordo com a seleção do usuário
 if st.session_state["cadeia_selecionada"] is None:
     renderizar_tela_inicial()
 elif st.session_state["cadeia_selecionada"] == "bovinos":
