@@ -178,7 +178,7 @@ if "cadeia_selecionada" not in st.session_state:
     st.session_state["cadeia_selecionada"] = None  # None = Tela Inicia
 
 # Caminho relativo para o diretório de dados, ajustado para funcionar tanto em execução local quanto em ambiente de nuvem
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.resolve()
 DATA_DIR = BASE_DIR / "Dados"
 
 REGIOES = {
