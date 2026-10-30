@@ -181,6 +181,20 @@ if "cadeia_selecionada" not in st.session_state:
 BASE_DIR = Path(__file__).parent.resolve()
 DATA_DIR = BASE_DIR / "Dados"
 
+# 2. Verificação de diagnóstico em caso de erro de leitura no Cloud
+caminho_suino = DATA_DIR / "prod" / "suino_consolidado.parquet"
+
+if not caminho_suino.exists():
+    st.error("❌ Erro de localização de ficheiros no Streamlit Cloud!")
+    st.write(f"📍 Diretório base detetado: `{BASE_DIR}`")
+    st.write(f"🔍 A procurar ficheiro em: `{caminho_suino}`")
+    
+    pasta_prod = DATA_DIR / "prod"
+    if pasta_prod.exists():
+        st.write("📂 Ficheiros encontrados dentro de `dados/prod/`:", os.listdir(pasta_prod))
+    else:
+        st.write("⚠️ A pasta `dados/prod` não foi encontrada neste caminho.")
+
 REGIOES = {
     "Brasil": None,
     "Sudeste": ["ES", "MG", "RJ", "SP"],
