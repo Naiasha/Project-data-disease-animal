@@ -179,7 +179,7 @@ if "cadeia_selecionada" not in st.session_state:
 
 # Caminho relativo para o diretório de dados, ajustado para funcionar tanto em execução local quanto em ambiente de nuvem
 BASE_DIR = Path(__file__).parent.resolve()
-DATA_DIR = BASE_DIR / "Dados"
+DATA_DIR = BASE_DIR / "dados"
 
 # 2. Verificação de diagnóstico em caso de erro de leitura no Cloud
 caminho_suino = DATA_DIR / "prod" / "suino_consolidado.parquet"
