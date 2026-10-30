@@ -412,7 +412,17 @@ def renderizar_tela_inicial():
 
 
     st.caption(
-                "Painel desenvolvido como parte do projeto desenvolvido para o Programa de Pesquisa, Produtividade, Desenvolvimento tecnológico e Extensão Inovadora do Centro Universitário Toledo Wyden")
+        "Painel desenvolvido como parte do projeto desenvolvido para o Programa de Pesquisa, "
+        "Produtividade, Desenvolvimento tecnológico e Extensão Inovadora do Centro Universitário Toledo Wyden."
+    )
+
+    st.caption(
+        "**Nota de Transparência Metodológica:**\n"
+        "Este dashboard foi desenvolvido como parte de projeto de pesquisa. Ferramentas de IA gerativa (Gemini Pro) "
+        "foram utilizadas no suporte ao refatoramento de código em Python, otimização "
+        "e tratamento de erros de deploy. O design metodológico, a validação técnica dos dados sanitários e "
+        "as análises resultantes são de responsabilidade integral dos pesquisadores."
+    )
 # botão de voltar para a tela inicial
 
 
