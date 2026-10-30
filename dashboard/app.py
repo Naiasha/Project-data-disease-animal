@@ -534,7 +534,7 @@ def renderizar_tela_inicial():
                 """
             )
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Acessar Painel de Ruminantes", width=True, type="primary"):
+            if st.button("Acessar Painel de Ruminantes", width="stretch", type="primary"):
                 st.session_state["cadeia_selecionada"] = "bovinos"
                 st.rerun()
 
@@ -550,7 +550,7 @@ def renderizar_tela_inicial():
                 """
             )
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Acessar Painel de Suínos", width=True):
+            if st.button("Acessar Painel de Suínos", width="stretch"):
                 st.session_state["cadeia_selecionada"] = "suinos"
                 st.rerun()
 
@@ -559,7 +559,7 @@ def renderizar_tela_inicial():
 
 def exibir_botao_voltar():
     st.sidebar.markdown("Navegação")
-    if st.sidebar.button("Voltar para a Tela Inicial", width=True):
+    if st.sidebar.button("Voltar para a Tela Inicial", width="stretch"):
         st.session_state["cadeia_selecionada"] = None
         st.rerun()
     st.sidebar.markdown("---")
@@ -752,7 +752,7 @@ def renderizar_dashboard_bovinos():
             with col_map_fig:
                 evento = st.plotly_chart(
                     fig_mapa,
-                    width=True,
+                    width="stretch",
                     key="mapa_brasil",
                     on_select="rerun",
                     selection_mode="points",
@@ -813,7 +813,7 @@ def renderizar_dashboard_bovinos():
                 )
                 fig_partes.update_layout(coloraxis_showscale=False,
                                          margin=dict(l=0, r=0, t=10, b=0))
-                st.plotly_chart(fig_partes, width=True)
+                st.plotly_chart(fig_partes, width="stretch")
 
                 with col_graf2:
                     st.subheader("📈 Evolução Temporal da Taxa Sanitária")
@@ -894,7 +894,7 @@ def renderizar_dashboard_bovinos():
                         hovermode="x unified"
                     )
 
-                    st.plotly_chart(fig_linha, width=True)
+                    st.plotly_chart(fig_linha, width="stretch")
 
             UF_PARA_REGIAO = {uf: reg for reg,
                               ufs in REGIOES.items() if ufs for uf in ufs}
@@ -906,7 +906,7 @@ def renderizar_dashboard_bovinos():
                     st.dataframe(
                         dados_outliers[["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
                                         "ABATE", "CONDENADO_TOTAL", "percentual_condenados"]],
-                        width=True,
+                        width="stretch",
                         hide_index=True
                     )
             # tabela de dados consolidados
@@ -921,7 +921,7 @@ def renderizar_dashboard_bovinos():
             st.dataframe(
                 dados_filtrados[colunas_tabela].sort_values(
                     ["ANO", "MES", "UF_PROCEDENCIA"]),
-                width=True,
+                width="stretch",
                 hide_index=True
             )
 
@@ -994,7 +994,7 @@ def renderizar_dashboard_bovinos():
                     template="plotly_white"
                 )
                 fig_tree.update_layout(margin=dict(l=0, r=0, t=10, b=0))
-                st.plotly_chart(fig_tree, width=True)
+                st.plotly_chart(fig_tree, width="stretch")
 
             with col_c2:
                 st.markdown("Top 10 Enfermidades com Maior Incidência")
@@ -1020,7 +1020,7 @@ def renderizar_dashboard_bovinos():
                 )
                 fig_bar_diag.update_layout(
                     coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0))
-                st.plotly_chart(fig_bar_diag, width=True)
+                st.plotly_chart(fig_bar_diag, width="stretch")
 
             st.markdown("---")
 
@@ -1056,7 +1056,7 @@ def renderizar_dashboard_bovinos():
                     color_discrete_sequence=["#B22222"]
                 )
                 fig_uf_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
-                st.plotly_chart(fig_uf_diag, width=True)
+                st.plotly_chart(fig_uf_diag, width="stretch")
 
             with col_det2:
                 st.markdown(
@@ -1085,7 +1085,7 @@ def renderizar_dashboard_bovinos():
                 )
                 fig_tempo_diag.update_traces(line_color="#CD5C5C")
                 fig_tempo_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
-                st.plotly_chart(fig_tempo_diag, width=True)
+                st.plotly_chart(fig_tempo_diag, width="stretch")
 
     # tab 3 - estatística e modelagem
 
@@ -1164,7 +1164,7 @@ def renderizar_dashboard_bovinos():
 
                     st.dataframe(
                         coef_formatado[["IRR (e^β)", "p-valor", "IC 95%"]],
-                        width=True
+                        width="stretch"
                     )
 
                 with col_m2:
@@ -1213,7 +1213,7 @@ def renderizar_dashboard_bovinos():
                 fig_box.update_layout(
                     showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
                 fig_box = formatar_grafico_plotly(fig_box)
-                st.plotly_chart(fig_box, width=True)
+                st.plotly_chart(fig_box, width="stretch")
 
             with col_st2:
                 st.markdown("3. Linha de Tendência Ponderada (OLS)")
@@ -1237,7 +1237,7 @@ def renderizar_dashboard_bovinos():
                 )
                 fig_trend.update_layout(margin=dict(l=0, r=0, t=10, b=0))
                 fig_trend = formatar_grafico_plotly(fig_trend)
-                st.plotly_chart(fig_trend, width=True)
+                st.plotly_chart(fig_trend, width="stretch")
 
 # Dashboard de suínos
 
@@ -1419,7 +1419,7 @@ def renderizar_dashboard_suinos():
             with col_map_fig:
                 evento = st.plotly_chart(
                     fig_mapa,
-                    width=True,
+                    width="stretch",
                     key="mapa_brasil_suinos",
                     on_select="rerun",
                     selection_mode="points",
@@ -1475,7 +1475,7 @@ def renderizar_dashboard_suinos():
                 )
                 fig_partes = formatar_grafico_plotly(fig_partes)
                 fig_partes.update_layout(coloraxis_showscale=False)
-                st.plotly_chart(fig_partes, width=True)
+                st.plotly_chart(fig_partes, width="stretch")
 
             with col_graf2:
                 st.subheader("📈 Evolução Temporal da Taxa Sanitária")
@@ -1556,7 +1556,7 @@ def renderizar_dashboard_suinos():
                     hovermode="x unified"
                 )
 
-                st.plotly_chart(fig_linha, width=True)
+                st.plotly_chart(fig_linha, width="stretch")
             if not dados_outliers.empty:
                 with st.expander("Ver registros atípicos isolados pelo filtro de qualidade"):
                     st.write(
@@ -1564,7 +1564,7 @@ def renderizar_dashboard_suinos():
                     st.dataframe(
                         dados_outliers[["ANO", "MES", "UF_PROCEDENCIA", "ESPECIE",
                                         "ABATE", "CONDENADO_TOTAL", "percentual_condenados"]],
-                        width=True,
+                        width="stretch",
                         hide_index=True
                                     )
                         # tabela de dados consolidados
@@ -1579,7 +1579,7 @@ def renderizar_dashboard_suinos():
             st.dataframe(
                 dados_filtrados[colunas_tabela].sort_values(
                     ["ANO", "MES", "UF_PROCEDENCIA"]),
-                width=True,
+                width="stretch",
                 hide_index=True
             )
 
@@ -1646,7 +1646,7 @@ def renderizar_dashboard_suinos():
                     template="plotly_white"
                 )
                 fig_tree.update_layout(margin=dict(l=0, r=0, t=10, b=0))
-                st.plotly_chart(fig_tree, width=True)
+                st.plotly_chart(fig_tree, width="stretch")
 
             with col_c2:
                 st.markdown("Top 10 Enfermidades / Achados com Maior Incidência")
@@ -1671,7 +1671,7 @@ def renderizar_dashboard_suinos():
                 )
                 fig_bar_diag = formatar_grafico_plotly(fig_bar_diag)
                 fig_bar_diag.update_layout(coloraxis_showscale=False)
-                st.plotly_chart(fig_bar_diag, width=True)
+                st.plotly_chart(fig_bar_diag, width="stretch")
 
             st.markdown("---")
 
@@ -1701,7 +1701,7 @@ def renderizar_dashboard_suinos():
                     color_discrete_sequence=["#D97706"]
                 )
                 fig_uf_diag = formatar_grafico_plotly(fig_uf_diag)
-                st.plotly_chart(fig_uf_diag, width=True)
+                st.plotly_chart(fig_uf_diag, width="stretch")
 
             with col_det2:
                 st.markdown(f"**Evolução Temporal dos Casos — {diag_selecionado}:**")
@@ -1733,7 +1733,7 @@ def renderizar_dashboard_suinos():
                     dtick="M1"           # Fixa a menor unidade do eixo em 1 mês
                 )
 
-                st.plotly_chart(fig_tempo_diag, width=True)
+                st.plotly_chart(fig_tempo_diag, width="stretch")
 
     # =========================================================================
     # ABA 3: ESTATÍSTICA E MODELAGEM
@@ -1793,7 +1793,7 @@ def renderizar_dashboard_suinos():
 
                     st.dataframe(
                         coef_formatado[["IRR (e^β)", "p-valor", "IC 95%"]],
-                        width = True
+                        width="stretch"
                     )
 
                 with col_m2:
@@ -1831,7 +1831,7 @@ def renderizar_dashboard_suinos():
                 )
                 fig_box.update_layout(showlegend=False)
                 fig_box = formatar_grafico_plotly(fig_box)
-                st.plotly_chart(fig_box, width=True)
+                st.plotly_chart(fig_box, width="stretch")
 
             with col_st2:
                 st.markdown("##### 📉 Linha de Tendência Ponderada (OLS)")
@@ -1852,7 +1852,7 @@ def renderizar_dashboard_suinos():
                     template="plotly_white"
                 )
                 fig_trend = formatar_grafico_plotly(fig_trend)
-                st.plotly_chart(fig_trend, width=True)
+                st.plotly_chart(fig_trend, width="stretch")
 
 
 # Roteador principal para renderizar os dashboards de acordo com a seleção do usuário
