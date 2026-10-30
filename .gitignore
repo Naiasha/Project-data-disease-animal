@@ -1,2 +1,4 @@
 "https://github.com/Naiasha/Project-data-disease-animal.git" 
 Dados/original/relatório de condenação.csv
+# Permitir que as bases leves de produção subam para o GitHub
+!dados/prod/*.parquet
