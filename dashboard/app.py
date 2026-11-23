@@ -1473,6 +1473,8 @@ def renderizar_dashboard_suinos():
                 )
                 df_br_tempo["taxa_brasil"] = (df_br_tempo["CONDENADO"] / df_br_tempo["ABATE"]) * 100
 
+                df_br_tempo = df_br_tempo[df_br_tempo["CONDENADO"] > 0]
+
                 # 3. Agrupamento do Recorte Selecionado
                 df_sel_tempo = (
                     dados_filtrados
