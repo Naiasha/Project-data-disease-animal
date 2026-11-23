@@ -828,6 +828,10 @@ def renderizar_dashboard_bovinos():
                     * **Carcaça e Cortes:** Inclui registros em carcaças inteiras, meias carcaças, quartos e paletas.
                     * **Vísceras e Miúdos:** Inclui lesões registradas em órgãos e vísceras (fígado, pulmão, rins, etc.).
                     * **Amostragens/Coletas:** Registros de coleta fiscal (PNCRC) foram excluídos da contagem de lesões sanitárias.
+                    * **Fidelidade aos Descritores Oficiais:** As nomenclaturas diagnósticas originais do sistema oficial foram preservadas integralmente. Ocorrências eventuais de descritores associados a outras espécies (como *aborto enzoótico das ovelhas*) refletem aproximações diagnósticas na rotina de inspeção (ex.: suspeitas/achados de *Chlamydia* spp.) ou seleção por proximidade nas listas do sistema primário.
+                    * **Lacunas de Notificação Temporal:** Registros de meses com volume de abate declarado mas ausência total de notificações de condenação (como janeiro de 2021) foram isolados das curvas de tendência e dos modelos de regressão (GLM Poisson/OLS) para evitar viés de inclinação.
+                    * **Interpretação do Risco Relativo em Bubalinos (IRR):** O risco relativo superior observado em bubalinos deve ser interpretado considerando o perfil epidemiológico e produtivo da espécie no Brasil, concentrada na região Norte (ambientes de várzea com maior desafio parasitário) e com maior proporção de animais de descarte em idade avançada.
+                    
 
                     **Fórmula:** $\\text{Taxa (\\%)} = \\left( \\frac{\\sum \\text{Registros de Condenções}}{\\sum \\text{Animais Abatidos}} \\right) \\times 100$
                     """
@@ -1307,8 +1311,12 @@ def renderizar_dashboard_suinos():
                 total_carcaca + total_visceras))
 
             st.info(
-                "💡 **Nota Técnica Sanitária:** O índice exibido representa o número de **ocorrências notificadas por 100 suínos abatidos**. "
-                "Inclui condenações totais de carcaça e descarte parcial de órgãos (fígado, pulmões, rins)."
+                """
+                💡 **Nota Técnica e Garantia Sanitária:**
+                * **Segurança ao Consumidor:** Todo órgão ou parte condenada é imediatamente desviado pela inspeção oficial e inutilizado, **não chegando ao consumo humano**.
+                * **Condenações de Carcaça (Toalete/Aparas):** A maior parte dos registros em carcaça corresponde à remoção localizada de pequenas lesões (como abscessos vacinais, contusões ou aderências), liberando o restante da carne com total segurança.
+                * **Por que a taxa pode passar de 100%?** O índice representa ocorrências por 100 suínos abatidos. Como um único animal possui diversos órgãos (pulmões, rins, fígado, coração), ele pode gerar múltiplas condenações parciais.
+                """
             )
 
             st.markdown("---")
@@ -1397,7 +1405,7 @@ def renderizar_dashboard_suinos():
 
             st.markdown("---")
 
-            # TOP 10 PARTES E SÉRIE TEMPORAL
+           # TOP 10 PARTES E SÉRIE TEMPORAL
             col_graf1, col_graf2 = st.columns([1, 1])
 
             with col_graf1:
@@ -1407,10 +1415,19 @@ def renderizar_dashboard_suinos():
                     df_partes_filtrado = df_condenacao_bruta[
                         (df_condenacao_bruta["ANO"].isin(anos)) &
                         (df_condenacao_bruta["UF_PROCEDENCIA"].isin(ufs))
-                    ]
+                    ].copy()
+
+                    # Sincroniza com as chaves válidas de dados_filtrados (sem os registros > 200%)
+                    chaves_validas = dados_filtrados[["ANO", "MES", "UF_PROCEDENCIA"]].drop_duplicates()
+                    if "MES" in df_partes_filtrado.columns:
+                        df_partes_valido = df_partes_filtrado.merge(
+                            chaves_validas, on=["ANO", "MES", "UF_PROCEDENCIA"], how="inner"
+                        )
+                    else:
+                        df_partes_valido = df_partes_filtrado
 
                     df_partes_top = (
-                        df_partes_filtrado
+                        df_partes_valido
                         .groupby("PARTE_PADRONIZADA", as_index=False)
                         .agg(TOTAL=("TOTAL_PARTES_AFETADAS", "sum"))
                         .sort_values("TOTAL", ascending=True)
@@ -1572,35 +1589,64 @@ def renderizar_dashboard_suinos():
     with tab_doencas:
         st.subheader("Análise Epidemiológica de Lesões e Patologias em Suínos")
         st.caption(
-            "Painel interativo de diagnóstico e causas de condenação em abates suínos.")
+            "Painel interativo de diagnóstico e causas de condenação em abates suínos."
+        )
 
         if df_doencas_filtrado.empty:
             st.info(
-                "⚠️ Nenhum registro de lesão/diagnóstico de suínos encontrado para os filtros selecionados.")
+                "⚠️ Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados."
+            )
         else:
+            # 1. KPIs da Aba 2 (mantém a base completa para não distorcer a prevalência)
             col_d1, col_d2, col_d3 = st.columns(3)
+
             total_casos = df_doencas_filtrado["QTD_OCORRENCIAS"].sum()
 
-            agrupado_diag = df_doencas_filtrado.groupby("DIAGNOSTICO_PADRONIZADO")[
-                "QTD_OCORRENCIAS"].sum()
+            agrupado_diag = (
+                df_doencas_filtrado
+                .groupby("DIAGNOSTICO_PADRONIZADO")["QTD_OCORRENCIAS"]
+                .sum()
+            )
+
             top_diag_nome = agrupado_diag.idxmax()
             total_top_diag = agrupado_diag.max()
-            pct_top_diag = (total_top_diag / total_casos *
-                            100) if total_casos > 0 else 0
+            pct_top_diag = (total_top_diag / total_casos * 100) if total_casos > 0 else 0
 
-            with col_d1:
-                st.metric("Registros de Lesões", formata_numero(total_casos))
-
-                col_d2.metric("Principal Diagnóstico", str(top_diag_nome))
-                col_d3.metric("Prevalência do Top 1",
-                              f"{pct_top_diag:.1f}% dos casos")
+            col_d1.metric("Registros de Lesões", formata_numero(total_casos))
+            col_d2.metric("Principal Diagnóstico", str(top_diag_nome))
+            col_d3.metric("Prevalência do Top 1", f"{pct_top_diag:.1f}% dos casos")
 
             st.markdown("---")
 
-           
-            st.markdown("Treemap de Proporção das Lesões")
+            # 2. Treemap com filtro opcional para a categoria 'Outro'
+            st.markdown("**Treemap de Proporção das Lesões**")
+
+            ocultar_outro = st.checkbox(
+                "Ocultar categoria 'Outro' no gráfico para ampliar a visualização das causas específicas",
+                value=True,
+                key="ocultar_outro_suinos"
+            )
+
+            df_base_tree = df_doencas_filtrado.copy()
+            df_base_tree["CLASSIFICACAO"] = (
+                df_base_tree["CLASSIFICACAO"]
+                .astype(str)
+                .str.strip()
+                .replace({"Erro operacional": "Erros operacionais"})
+            )
+
+            if ocultar_outro:
+                qtd_outros = df_base_tree.loc[
+                    df_base_tree["CLASSIFICACAO"] == "Outro", "QTD_OCORRENCIAS"
+                ].sum()
+                df_base_tree = df_base_tree[df_base_tree["CLASSIFICACAO"] != "Outro"]
+                st.caption(
+                    f"Nota visual: {formata_numero(qtd_outros)} ocorrências classificadas como 'Outro' no sistema "
+                    "foram ocultadas deste gráfico para melhorar a proporção visual (mantidas nos indicadores gerais)."
+                )
+
             df_tree = (
-                df_doencas_filtrado
+                df_base_tree
                 .groupby("CLASSIFICACAO", as_index=False)
                 .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
                 .sort_values("TOTAL", ascending=False)
@@ -1618,8 +1664,7 @@ def renderizar_dashboard_suinos():
             fig_tree.update_layout(margin=dict(l=0, r=0, t=10, b=0))
             st.plotly_chart(fig_tree, width="stretch")
 
-            st.markdown(
-                "Top 10 Enfermidades / Achados com Maior Incidência")
+            st.markdown("**Top 10 Enfermidades / Achados com Maior Incidência**")
             df_top_diag = (
                 df_doencas_filtrado
                 .groupby("DIAGNOSTICO_PADRONIZADO", as_index=False)
@@ -1634,32 +1679,46 @@ def renderizar_dashboard_suinos():
                 y="DIAGNOSTICO_PADRONIZADO",
                 orientation="h",
                 text_auto=",.0f",
-                labels={"TOTAL": "Ocorrências",
-                        "DIAGNOSTICO_PADRONIZADO": "Diagnóstico"},
+                labels={"TOTAL": "Ocorrências", "DIAGNOSTICO_PADRONIZADO": "Diagnóstico"},
                 color="TOTAL",
                 color_continuous_scale="Oranges",
                 template="plotly_white"
             )
             fig_bar_diag.update_layout(
-                coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0))
+                coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0)
+            )
             st.plotly_chart(fig_bar_diag, width="stretch")
 
             st.markdown("---")
 
-            st.markdown("##### Investigação por Diagnóstico Específico")
-            lista_diagnosticos = sorted(
-                df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"].unique())
-            diag_selecionado = st.selectbox(
-                "Selecione uma causa/lesão para detalhar:", lista_diagnosticos, key="sb_diag_suinos")
+            # 3. Investigação por Diagnóstico Específico
+            st.markdown("**Investigação por Diagnóstico Específico**")
 
-            df_diag_isolado = df_doencas_filtrado[df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"] == diag_selecionado].copy(
+            lista_diagnosticos = sorted(
+                df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"].dropna().unique()
             )
+            padrao_diag = "aderência de pleura (seca)"
+            idx_padrao = (
+                lista_diagnosticos.index(padrao_diag)
+                if padrao_diag in lista_diagnosticos
+                else 0
+            )
+
+            diag_selecionado = st.selectbox(
+                "Selecione uma causa/lesão para detalhar:",
+                options=lista_diagnosticos,
+                index=idx_padrao,
+                key="select_diag_suinos"
+            )
+
+            df_diag_isolado = df_doencas_filtrado[
+                df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"] == diag_selecionado
+            ].copy()
 
             col_det1, col_det2 = st.columns(2)
 
             with col_det1:
-                st.markdown(
-                    f"**Distribuição por Estado (UF) — {diag_selecionado}:**")
+                st.markdown(f"**Distribuição por Estado (UF) — {diag_selecionado}:**")
                 df_uf_diag = (
                     df_diag_isolado
                     .groupby("UF_PROCEDENCIA", as_index=False)
@@ -1673,17 +1732,16 @@ def renderizar_dashboard_suinos():
                     y="TOTAL",
                     text_auto=",.0f",
                     labels={"TOTAL": "Casos", "UF_PROCEDENCIA": "UF"},
-                    color_discrete_sequence=["#D97706"]
+                    color_discrete_sequence=["#D95F02"]
                 )
-                fig_uf_diag = formatar_grafico_plotly(fig_uf_diag)
+                fig_uf_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
                 st.plotly_chart(fig_uf_diag, width="stretch")
 
             with col_det2:
-                st.markdown(
-                    f"**Evolução Temporal dos Casos — {diag_selecionado}:**")
+                st.markdown(f"**Evolução Temporal dos Casos — {diag_selecionado}:**")
+
                 df_diag_isolado["DATA"] = pd.to_datetime(
-                    dict(year=df_diag_isolado["ANO"],
-                         month=df_diag_isolado["MES"], day=1),
+                    dict(year=df_diag_isolado["ANO"], month=df_diag_isolado["MES"], day=1),
                     errors="coerce"
                 )
 
@@ -1702,15 +1760,8 @@ def renderizar_dashboard_suinos():
                     labels={"DATA": "Mês/Ano", "TOTAL": "Casos Notificados"},
                     template="plotly_white"
                 )
-
-                fig_tempo_diag.update_traces(line_color="#CD5C5C")
-                fig_tempo_diag = formatar_grafico_plotly(fig_tempo_diag)
-                fig_tempo_diag.update_xaxes(
-                    # Exibe no formato Mai/2021 (ou use "%m/%Y" para 05/2021)
-                    tickformat="%b/%Y",
-                    dtick="M1"           # Fixa a menor unidade do eixo em 1 mês
-                )
-
+                fig_tempo_diag.update_traces(line_color="#D95F02")
+                fig_tempo_diag.update_layout(margin=dict(l=0, r=0, t=10, b=0))
                 st.plotly_chart(fig_tempo_diag, width="stretch")
 
     #terceira aba - estatística
@@ -1724,8 +1775,16 @@ def renderizar_dashboard_suinos():
             st.warning(
                 "⚠️ Dados insuficientes para ajuste dos modelos estatísticos no recorte selecionado.")
         else:
+            df_serie_valida = (
+                dados_filtrados
+                .groupby(["ANO", "MES"], as_index=False)
+                .agg(TOTAL_COND=("CONDENADO_TOTAL", "sum"))
+            )
+            meses_validos = df_serie_valida[df_serie_valida["TOTAL_COND"] > 0][["ANO", "MES"]]
+            dados_filtrados = dados_filtrados.merge(meses_validos, on=["ANO", "MES"], how="inner")
+
             st.markdown(
-                "##### 🧪 1. Estimativa de Fatores de Risco (GLM Poisson)")
+                "1. Estimativa de Fatores de Risco (GLM Poisson)")
             df_model = dados_filtrados[dados_filtrados["ABATE"] > 0].copy()
 
             min_ano = df_model["ANO"].min()
@@ -1843,6 +1902,7 @@ def renderizar_dashboard_suinos():
                     labels={"DATA": "Mês/Ano", "taxa": "Taxa Sanitária (%)"},
                     template="plotly_white"
                 )
+                fig_trend.update_layout(margin=dict(l=0, r=0, t=10, b=0))
                 fig_trend = formatar_grafico_plotly(fig_trend)
                 st.plotly_chart(fig_trend, width="stretch")
 
