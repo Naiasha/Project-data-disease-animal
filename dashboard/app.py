@@ -561,8 +561,12 @@ def renderizar_dashboard_bovinos():
                 total_carcaca + total_visceras))
 
             st.info(
-                "💡 **Nota Técnica Sanitária:** O índice exibido representa o número de **ocorrências notificadas por 100 animais abatidos**. "
-                "A categoria *Carcaça e Cortes* refere-se a condenações totais/estruturais, enquanto *Vísceras/Miúdos* refere-se a condenações parciais de órgãos."
+                """
+                💡 **Nota Técnica e Garantia Sanitária:**
+                * **Segurança ao Consumidor:** Todo órgão ou carcaça condenada é imediatamente desviado pela inspeção oficial e inutilizado, **não chegando ao consumo humano**. Taxas maiores indicam rigor na vigilância sanitária.
+                * **Por que a taxa pode passar de 100%?** O índice representa o número de **ocorrências por 100 animais abatidos**. Como um único animal possui diversos órgãos (fígado, pulmão, rins, cérebro), ele pode gerar mais de uma condenação parcial.
+                * **Destaque de Cérebro / MER:** A elevada inutilização de cérebros decorre da remoção obrigatória e preventiva do **Material Especificado de Risco (MER)** conforme idade do animal (prevenção contra a Encefalopatia Espongiforme Bovina — "Vaca Louca"), não indicando surto neurológico no rebanho.
+                """
             )
 
             st.markdown("---")
@@ -833,13 +837,16 @@ def renderizar_dashboard_bovinos():
     with tab_doencas:
         st.subheader("Análise Epidemiológica de Doenças e Diagnósticos")
         st.caption(
-            "Painel interativo de vigilância sanitária baseado nos dados do arquivo Doença por procedência, permitindo uma análise detalhada das ocorrências de doenças e diagnósticos.")
+            "Painel interativo de vigilância sanitária baseado nos dados do arquivo Doença por procedência, "
+            "permitindo uma análise detalhada das ocorrências de doenças e diagnósticos."
+        )
 
         if df_doencas_filtrado.empty:
             st.info(
-                "⚠️ Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados.")
+                "⚠️ Nenhum registro de doença/diagnóstico encontrado para os filtros selecionados."
+            )
         else:
-            # 1. KPIs da Aba 2
+            # 1. KPIs da Aba 2 (mantém a base completa para não distorcer a prevalência)
             col_d1, col_d2, col_d3 = st.columns(3)
 
             total_casos = df_doencas_filtrado["QTD_OCORRENCIAS"].sum()
@@ -852,28 +859,53 @@ def renderizar_dashboard_bovinos():
 
             top_diag_nome = agrupado_diag.idxmax()
             total_top_diag = agrupado_diag.max()
-            pct_top_diag = (total_top_diag / total_casos *
-                            100) if total_casos > 0 else 0
+            pct_top_diag = (total_top_diag / total_casos * 100) if total_casos > 0 else 0
 
             col_d1.metric("Registros de Doenças", formata_numero(total_casos))
             col_d2.metric("Principal Diagnóstico", str(top_diag_nome))
-            col_d3.metric("Prevalência do Top 1",
-                          f"{pct_top_diag:.1f}% dos casos")
+            col_d3.metric("Prevalência do Top 1", f"{pct_top_diag:.1f}% dos casos")
 
             st.markdown("---")
 
-            # 2. Ranking e Distribuição
-            st.markdown("Treemap de Proporção dos Diagnósticos")
+            # 2. Ranking e Distribuição (Treemap)
+            st.markdown("**Treemap de Proporção dos Diagnósticos**")
+
+            ocultar_outro = st.checkbox(
+                "Ocultar categoria 'Outro' no gráfico para ampliar a visualização das causas específicas",
+                value=True
+            )
+
+            df_base_tree = df_doencas_filtrado.copy()
+
+            # Padroniza a duplicidade singular/plural na coluna CLASSIFICACAO
+            df_base_tree["CLASSIFICACAO"] = (
+                df_base_tree["CLASSIFICACAO"]
+                .astype(str)
+                .str.strip()
+                .replace({"Erro operacional": "Erros operacionais"})
+            )
+
+            if ocultar_outro:
+                qtd_outros = df_base_tree.loc[
+                    df_base_tree["CLASSIFICACAO"] == "Outro", "QTD_OCORRENCIAS"
+                ].sum()
+                df_base_tree = df_base_tree[df_base_tree["CLASSIFICACAO"] != "Outro"]
+                st.caption(
+                    f"Nota visual: {formata_numero(qtd_outros)} ocorrências classificadas como 'Outro' no sistema "
+                    "foram ocultadas deste gráfico para melhorar a proporção visual (mantidas nos indicadores gerais)."
+                )
+
+            # Agrupa a partir de df_base_tree (já tratado e filtrado)
             df_tree = (
-                df_doencas_filtrado
+                df_base_tree
                 .groupby("CLASSIFICACAO", as_index=False)
                 .agg(TOTAL=("QTD_OCORRENCIAS", "sum"))
                 .sort_values("TOTAL", ascending=False)
-                .head(15)  # Top 15 para não poluir o gráfico
+                .head(15)
             )
 
             fig_tree = px.treemap(
-                 df_tree,
+                df_tree,
                 path=["CLASSIFICACAO"],
                 values="TOTAL",
                 color="TOTAL",
@@ -883,7 +915,7 @@ def renderizar_dashboard_bovinos():
             fig_tree.update_layout(margin=dict(l=0, r=0, t=10, b=0))
             st.plotly_chart(fig_tree, width="stretch")
 
-            st.markdown("Top 10 Enfermidades com Maior Incidência")
+            st.markdown("**Top 10 Causas de Condenação e Achados Sanitários**")
             df_top_diag = (
                 df_doencas_filtrado
                 .groupby("DIAGNOSTICO_PADRONIZADO", as_index=False)
@@ -898,34 +930,45 @@ def renderizar_dashboard_bovinos():
                 y="DIAGNOSTICO_PADRONIZADO",
                 orientation="h",
                 text_auto=",.0f",
-                labels={"TOTAL": "Ocorrências",
-                        "DIAGNOSTICO_PADRONIZADO": "Diagnóstico"},
+                labels={"TOTAL": "Ocorrências", "DIAGNOSTICO_PADRONIZADO": "Diagnóstico"},
                 color="TOTAL",
                 color_continuous_scale="OrRd",
                 template="plotly_white"
-                )
+            )
             fig_bar_diag.update_layout(
-                coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0))
+                coloraxis_showscale=False, margin=dict(l=0, r=0, t=10, b=0)
+            )
             st.plotly_chart(fig_bar_diag, width="stretch")
 
             st.markdown("---")
 
-            # 3. Análise Isolada de uma Enfermidade
-            st.markdown("Investigação por Doença Específica")
+            # 3. Análise Isolada de uma Enfermidade / Achado
+            st.markdown("**Investigação por Diagnóstico Específico**")
 
             lista_diagnosticos = sorted(
-                df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"].unique())
-            diag_selecionado = st.selectbox(
-                "Selecione um diagnóstico para detalhar:", lista_diagnosticos)
+                df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"].dropna().unique()
+            )
+            padrao_diag = "material especificado de risco (inutilização)"
+            idx_padrao = (
+                lista_diagnosticos.index(padrao_diag)
+                if padrao_diag in lista_diagnosticos
+                else 0
+            )
 
-            df_diag_isolado = df_doencas_filtrado[df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"]
-                                                  == diag_selecionado]
+            diag_selecionado = st.selectbox(
+                "Selecione um diagnóstico para detalhar:",
+                options=lista_diagnosticos,
+                index=idx_padrao
+            )
+
+            df_diag_isolado = df_doencas_filtrado[
+                df_doencas_filtrado["DIAGNOSTICO_PADRONIZADO"] == diag_selecionado
+            ].copy()
 
             col_det1, col_det2 = st.columns(2)
 
             with col_det1:
-                st.markdown(
-                    f"**Distribuição por Estado (UF) — {diag_selecionado}:**")
+                st.markdown(f"**Distribuição por Estado (UF) — {diag_selecionado}:**")
                 df_uf_diag = (
                     df_diag_isolado
                     .groupby("UF_PROCEDENCIA", as_index=False)
@@ -945,12 +988,10 @@ def renderizar_dashboard_bovinos():
                 st.plotly_chart(fig_uf_diag, width="stretch")
 
             with col_det2:
-                st.markdown(
-                    f"**Evolução Temporal dos Casos — {diag_selecionado}:**")
+                st.markdown(f"**Evolução Temporal dos Casos — {diag_selecionado}:**")
 
                 df_diag_isolado["DATA"] = pd.to_datetime(
-                    dict(year=df_diag_isolado["ANO"],
-                         month=df_diag_isolado["MES"], day=1),
+                    dict(year=df_diag_isolado["ANO"], month=df_diag_isolado["MES"], day=1),
                     errors="coerce"
                 )
 
@@ -978,36 +1019,44 @@ def renderizar_dashboard_bovinos():
     with tab_estatistica:
         st.subheader("Modelagem Estatística e Riscos Epidemiológicos")
         st.caption(
-            "Aplicações estatísticas avançadas para estimativa de fatores de risco (GLM Poisson) e análise de variabilidade.")
+            "Aplicações estatísticas avançadas para estimativa de fatores de risco (GLM Poisson) e análise de variabilidade."
+        )
 
         if dados_filtrados.empty or len(dados_filtrados) < 5:
             st.warning(
-                "⚠️ Dados insuficientes para ajuste dos modelos estatísticos no recorte selecionado.")
+                "⚠️ Dados insuficientes para ajuste dos modelos estatísticos no recorte selecionado."
+            )
         else:
+            # Filtra meses com volume de abate, mas zero absoluto de notificações de condenação (ex.: Jan/2021)
+            df_serie_valida = (
+                dados_filtrados
+                .groupby(["ANO", "MES"], as_index=False)
+                .agg(TOTAL_COND=("CONDENADO_TOTAL", "sum"))
+            )
+            meses_validos = df_serie_valida[df_serie_valida["TOTAL_COND"] > 0][["ANO", "MES"]]
+            dados_validos = dados_filtrados.merge(meses_validos, on=["ANO", "MES"], how="inner")
+
             # ---------------------------------------------------------------------
             # 1. MODELO GLM POISSON (RAZÃO DE TAXA DE INCIDÊNCIA - IRR)
             # ---------------------------------------------------------------------
-            st.markdown(
-                "1. Estimativa de Fatores de Risco (GLM Poisson)")
+            st.markdown("1. Estimativa de Fatores de Risco (GLM Poisson)")
 
-            # Preparação da base para regressão
-            df_model = dados_filtrados[dados_filtrados["ABATE"] > 0].copy()
+            # Preparação da base limpa para regressão
+            df_model = dados_validos[dados_validos["ABATE"] > 0].copy()
 
             # Variável de tempo contínuo (em meses desde o início da série)
             min_ano = df_model["ANO"].min()
-            df_model["TEMPO_MES"] = (
-                df_model["ANO"] - min_ano) * 12 + df_model["MES"]
+            df_model["TEMPO_MES"] = (df_model["ANO"] - min_ano) * 12 + df_model["MES"]
             df_model["LOG_ABATE"] = np.log(df_model["ABATE"])
 
             # Ajuste defensivo do modelo GLM via statsmodels
             try:
-                # Ajuste de GLM Poisson com offset
-                fórmula = "CONDENADO_TOTAL ~ TEMPO_MES"
+                formula = "CONDENADO_TOTAL ~ TEMPO_MES"
                 if df_model["ESPECIE"].nunique() > 1:
-                    fórmula += " + C(ESPECIE)"
+                    formula += " + C(ESPECIE)"
 
                 modelo_glm = smf.glm(
-                    formula=fórmula,
+                    formula=formula,
                     data=df_model,
                     family=sm.families.Poisson(),
                     offset=df_model["LOG_ABATE"]
@@ -1026,27 +1075,28 @@ def renderizar_dashboard_bovinos():
                 col_m1, col_m2 = st.columns([1.5, 1])
 
                 with col_m1:
-                    st.markdown(
-                        "**Tabela de Estimadores e Risco Relativo (IRR):**")
+                    st.markdown("**Tabela de Estimadores e Risco Relativo (IRR):**")
 
                     # Formatando a tabela para exibição amigável
                     coef_formatado = coef_df.copy()
-                    coef_formatado["IRR (e^β)"] = coef_formatado["IRR (e^β)"].map(
-                        "{:.4f}".format)
+                    coef_formatado["IRR (e^β)"] = coef_formatado["IRR (e^β)"].map("{:.4f}".format)
                     coef_formatado["p-valor"] = coef_formatado["p-valor"].map(
-                        lambda x: "< 0.001" if x < 0.001 else f"{x:.4f}")
+                        lambda x: "< 0.001" if x < 0.001 else f"{x:.4f}"
+                    )
                     coef_formatado["IC 95%"] = coef_formatado.apply(
-                        lambda r: f"[{r['IC 95% Inferior']:.3f} ; {r['IC 95% Superior']:.3f}]", axis=1)
+                        lambda r: f"[{r['IC 95% Inferior']:.3f} ; {r['IC 95% Superior']:.3f}]", axis=1
+                    )
 
                     rotulos_variaveis = {
                         "Intercept": "Constante (Taxa Base)",
+                        "C(ESPECIE)[T.BUBALINO]": "Fator Espécie: Bubalino vs. Bovino",
                         "C(ESPECIE)[T.Bubalino]": "Fator Espécie: Bubalino vs. Bovino",
                         "TEMPO_MES": "Tendência Temporal (Variação Mensal)"
                     }
 
-                    # Aplica a renomeação dos índices
                     coef_formatado.index = coef_formatado.index.map(
-                        lambda x: rotulos_variaveis.get(x, x))
+                        lambda x: rotulos_variaveis.get(x, x)
+                    )
 
                     st.dataframe(
                         coef_formatado[["IRR (e^β)", "p-valor", "IC 95%"]],
@@ -1060,22 +1110,25 @@ def renderizar_dashboard_bovinos():
 
                     if var_mensal > 0:
                         st.error(
-                            f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **aumento médio de {var_mensal:.2f}% a cada mês** no período analisado.")
+                            f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **aumento médio de {var_mensal:.2f}% a cada mês** no período analisado."
+                        )
                     else:
                         st.success(
-                            f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **redução média de {abs(var_mensal):.2f}% a cada mês** no período analisado.")
+                            f"• **Tendência Temporal:** A taxa de condenação apresenta uma tendência de **redução média de {abs(var_mensal):.2f}% a cada mês** no período analisado."
+                        )
 
                     p_val_tempo = modelo_glm.pvalues.get("TEMPO_MES", 1.0)
                     if p_val_tempo < 0.05:
                         st.caption(
-                            f"✓ Tendência estatisticamente significante (p-valor = {p_val_tempo:.4f} < 0.05).")
+                            f"✓ Tendência estatisticamente significante (p-valor = {p_val_tempo:.4f} < 0.05)."
+                        )
                     else:
                         st.caption(
-                            f"⚠️ Tendência sem significância estatística conclusiva (p-valor = {p_val_tempo:.4f} ≥ 0.05).")
+                            f"⚠️ Tendência sem significância estatística conclusiva (p-valor = {p_val_tempo:.4f} ≥ 0.05)."
+                        )
 
             except Exception as e:
-                st.warning(
-                    f"Não foi possível ajustar o modelo GLM Poisson: `{e}`")
+                st.warning(f"Não foi possível ajustar o modelo GLM Poisson: `{e}`")
 
             st.markdown("---")
 
@@ -1088,16 +1141,19 @@ def renderizar_dashboard_bovinos():
                 st.markdown("2. Variabilidade da Taxa por Estado (UF)")
 
                 fig_box = px.box(
-                    dados_filtrados,
+                    dados_validos,
                     x="UF_PROCEDENCIA",
                     y="percentual_condenados",
                     color="UF_PROCEDENCIA",
-                    labels={"UF_PROCEDENCIA": "UF",
-                            "percentual_condenados": "Taxa Sanitária (%)"},
+                    labels={
+                        "UF_PROCEDENCIA": "UF",
+                        "percentual_condenados": "Taxa Sanitária (%)"
+                    },
                     template="plotly_white"
                 )
                 fig_box.update_layout(
-                    showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
+                    showlegend=False, margin=dict(l=0, r=0, t=10, b=0)
+                )
                 fig_box = formatar_grafico_plotly(fig_box)
                 st.plotly_chart(fig_box, width="stretch")
 
@@ -1105,12 +1161,11 @@ def renderizar_dashboard_bovinos():
                 st.markdown("3. Linha de Tendência Ponderada (OLS)")
 
                 df_tend = (
-                    dados_filtrados
+                    dados_validos
                     .groupby("DATA", as_index=False)
                     .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
                 )
-                df_tend["taxa"] = (df_tend["CONDENADO"] /
-                                   df_tend["ABATE"]) * 100
+                df_tend["taxa"] = (df_tend["CONDENADO"] / df_tend["ABATE"]) * 100
 
                 fig_trend = px.scatter(
                     df_tend,
@@ -1505,6 +1560,9 @@ def renderizar_dashboard_suinos():
                     * **Carcaça e Cortes:** Inclui registros em carcaças inteiras, meias carcaças, quartos e paletas.
                     * **Vísceras e Miúdos:** Inclui lesões registradas em órgãos e vísceras (fígado, pulmão, rins, etc.).
                     * **Amostragens/Coletas:** Registros de coleta fiscal (PNCRC) foram excluídos da contagem de lesões sanitárias.
+                    * **Fidelidade aos Descritores Oficiais:** As nomenclaturas diagnósticas originais do sistema oficial foram preservadas integralmente. Ocorrências eventuais de descritores associados a outras espécies (como *aborto enzoótico das ovelhas*) refletem aproximações diagnósticas na rotina de inspeção (ex.: suspeitas/achados de *Chlamydia* spp.) ou seleção por proximidade nas listas do sistema primário.
+                    * **Lacunas de Notificação Temporal:** Registros de meses com volume de abate declarado mas ausência total de notificações de condenação (como janeiro de 2021) foram isolados das curvas de tendência e dos modelos de regressão (GLM Poisson/OLS) para evitar viés de inclinação.
+                    * **Interpretação do Risco Relativo em Bubalinos (IRR):** O risco relativo superior observado em bubalinos deve ser interpretado considerando o perfil epidemiológico e produtivo da espécie no Brasil, concentrada na região Norte (ambientes de várzea com maior desafio parasitário) e com maior proporção de animais de descarte em idade avançada.
 
                     **Fórmula:** $\\text{Taxa (\\%)} = \\left( \\frac{\\sum \\text{Registros de Condenções}}{\\sum \\text{Animais Abatidos}} \\right) \\times 100$
                     """
