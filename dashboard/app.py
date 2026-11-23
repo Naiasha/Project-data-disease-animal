@@ -1470,6 +1470,7 @@ def renderizar_dashboard_suinos():
                     dados_pais_base
                     .groupby("DATA", as_index=False)
                     .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
+                    .sort_value("DATA")
                 )
                 df_br_tempo["taxa_brasil"] = (df_br_tempo["CONDENADO"] / df_br_tempo["ABATE"]) * 100
 
@@ -1478,7 +1479,11 @@ def renderizar_dashboard_suinos():
                     dados_filtrados
                     .groupby("DATA", as_index=False)
                     .agg(ABATE=("ABATE", "sum"), CONDENADO=("CONDENADO_TOTAL", "sum"))
+                    .sort_values("DATA")
                 )
+
+                df_sel_tempo = df_sel_tempo[df_sel_tempo["CONDENADO"] > 0]
+
                 df_sel_tempo["taxa_selecao"] = (df_sel_tempo["CONDENADO"] / df_sel_tempo["ABATE"]) * 100
 
                 # 4. Lógica de montagem dos traços do Plotly
